@@ -1,0 +1,33 @@
+.archeasy .appcleaner-page { background: @BG@; color: @TEXT@; }
+.archeasy .appcleaner-page label { color: @TEXT@; }
+.archeasy .appcleaner-page .sidebar { background: @SIDE@; padding: 16px; }
+.archeasy .appcleaner-page .content { padding: 16px; }
+.archeasy .appcleaner-page .title { font-size: 26px; font-weight: 800; }
+.archeasy .appcleaner-page .heading { font-size: 18px; font-weight: bold; }
+.archeasy .appcleaner-page .eyebrow { color: @ACCENT@; font-weight: bold; }
+.archeasy .appcleaner-page .muted { color: @MUTED@; }
+.archeasy .appcleaner-page .card { background: @CARD@; border-radius: 12px; padding: 16px; }
+.archeasy .appcleaner-page list { background: transparent; color: @TEXT@; }
+.archeasy .appcleaner-page row { padding: 10px; border-radius: 8px; }
+.archeasy .appcleaner-page .app-list row { background: transparent; padding: 12px 10px; margin-bottom: 4px; color: @TEXT@; }
+.archeasy .appcleaner-page .app-list row:hover { background: @HOVER@; }
+.archeasy .appcleaner-page .app-list row:selected { background: @SELECT@; }
+.archeasy .appcleaner-page .app-list row .app-name { color: @TEXT@; font-size: 16px; font-weight: 600; }
+.archeasy .appcleaner-page .app-list row:selected .app-name { color: @SELECTTEXT@; }
+.archeasy .appcleaner-page .app-list row image { color: @ACCENT@; }
+.archeasy .appcleaner-page button, .archeasy .appcleaner-page entry, .archeasy .appcleaner-page searchentry, .archeasy .appcleaner-page combobox button { background: @CARD@; color: @TEXT@; border: 1px solid @BORDER@; }
+.archeasy .appcleaner-page button { padding: 10px 16px; border-radius: 8px; }
+.archeasy .appcleaner-page button:hover { background: @HOVER@; }
+.archeasy .appcleaner-page button label { color: inherit; }
+.archeasy .appcleaner-page button.suggested-action { background: @BUTTON@; color: @BUTTONTEXT@; border-color: @BUTTON@; }
+.archeasy .appcleaner-page button.suggested-action label { color: @BUTTONTEXT@; }
+.archeasy .appcleaner-page button:disabled { opacity: 0.5; }
+.archeasy .appcleaner-page checkbutton:checked check { background: @BUTTON@; color: @BUTTONTEXT@; }
+.archeasy .appcleaner-page entry:focus-within, .archeasy .appcleaner-page searchentry:focus-within { outline: 2px solid @ACCENT@; }
+.archeasy .appcleaner-page entry, .archeasy .appcleaner-page searchentry { padding: 8px; }
+.archeasy .appcleaner-page entry text, .archeasy .appcleaner-page searchentry text { color: @TEXT@; background: transparent; }
+.archeasy .appcleaner-page entry placeholder, .archeasy .appcleaner-page searchentry placeholder { color: @MUTED@; }
+.archeasy .appcleaner-page combobox popover contents { background: @CARD@; color: @TEXT@; }
+.archeasy .appcleaner-page combobox popover row:selected { background: @SELECT@; }
+.archeasy .appcleaner-page combobox popover row:selected label { color: @SELECTTEXT@; }
+.archeasy .appcleaner-page scrollbar slider { min-width: 6px; min-height: 6px; }

@@ -1,5 +1,8 @@
+mod appcleaner;
 mod appearance;
+mod cloud;
 mod configs;
+mod custom_theme;
 
 use gtk::{glib, prelude::*};
 use std::{
@@ -312,6 +315,14 @@ fn label(text: &str, class: &str) -> gtk::Label {
     l
 }
 fn main() -> glib::ExitCode {
+    let args: Vec<_> = std::env::args_os().collect();
+    if args.get(1).is_some_and(|a| a == "--config-apply-job") {
+        return if let Some(path) = args.get(2) {
+            configs::cli_apply(std::path::Path::new(path))
+        } else {
+            glib::ExitCode::FAILURE
+        };
+    }
     let app = gtk::Application::builder()
         .application_id("io.github.archeasy.ArchEasy")
         .build();
@@ -324,7 +335,10 @@ window.archeasy { background: @theme_bg_color; color: @theme_fg_color; }
 .archeasy .subtitle { opacity: 0.8; }
 .archeasy .card { background: alpha(@theme_fg_color, 0.06); border-radius: 14px; padding: 18px; }
 .archeasy .name { font-weight: 700; font-size: 17px; }
+.archeasy .heading { font-weight: 700; font-size: 18px; }
 .archeasy .badge { font-weight: 700; }
+.archeasy .card label.deps-met { color: #16845f; }
+.archeasy .card label.deps-missing { color: #967000; }
 .archeasy button {
     border-radius: 12px;
     padding: 9px 16px;
@@ -362,6 +376,8 @@ window.archeasy.light { background: #f3f6fb; color: #182536; }
 .light entry { background: #ffffff; color: #182536; }
 .archeasy .suggested-action { background: #55cbb6; color: #09251f; }
 .archeasy button:disabled { opacity: 0.55; }
+.archeasy .opening-title { color: #f0f7ff; font-size: 42px; font-weight: 800; letter-spacing: 1px; }
+.archeasy .opening-subtitle { color: #9cc8e3; font-size: 16px; letter-spacing: 2px; }
 "#;
 fn theme_path() -> std::path::PathBuf {
     glib::user_config_dir().join("archeasy").join("theme")
@@ -369,9 +385,11 @@ fn theme_path() -> std::path::PathBuf {
 fn apply_theme(window: &gtk::ApplicationWindow, selected: u32, system_dark: bool) {
     window.remove_css_class("light");
     window.remove_css_class("dark");
+    window.remove_css_class("custom");
     match selected {
         1 => window.add_css_class("light"),
         2 => window.add_css_class("dark"),
+        3 => window.add_css_class("custom"),
         _ => {}
     }
     if let Some(settings) = gtk::Settings::default() {
@@ -381,6 +399,8 @@ fn apply_theme(window: &gtk::ApplicationWindow, selected: u32, system_dark: bool
             let nick = match selected {
                 1 => "light",
                 2 => "dark",
+                3 if custom_theme::Palette::load(&custom_theme_path()).is_light() => "light",
+                3 => "dark",
                 _ => "default",
             };
             if let Some(value) = glib::EnumClass::with_type(property.value_type())
@@ -392,10 +412,14 @@ fn apply_theme(window: &gtk::ApplicationWindow, selected: u32, system_dark: bool
             settings.set_gtk_application_prefer_dark_theme(match selected {
                 1 => false,
                 2 => true,
+                3 => !custom_theme::Palette::load(&custom_theme_path()).is_light(),
                 _ => system_dark,
             });
         }
     }
+}
+fn custom_theme_path() -> std::path::PathBuf {
+    glib::user_config_dir().join("archeasy/custom-theme.json")
 }
 fn build_ui(app: &gtk::Application) {
     let css = gtk::CssProvider::new();
@@ -418,8 +442,16 @@ fn build_ui(app: &gtk::Application) {
     let selected = match saved_theme.trim() {
         "light" => 1,
         "dark" => 2,
+        "custom" => 3,
         _ => 0,
     };
+    let custom_css = gtk::CssProvider::new();
+    custom_css.load_from_data(&custom_theme::Palette::load(&custom_theme_path()).arch_css());
+    gtk::style_context_add_provider_for_display(
+        &WidgetExt::display(&win),
+        &custom_css,
+        gtk::STYLE_PROVIDER_PRIORITY_APPLICATION,
+    );
     apply_theme(&win, selected, system_dark);
     let root = gtk::Box::new(gtk::Orientation::Vertical, 14);
     root.set_margin_top(28);
@@ -438,7 +470,8 @@ fn build_ui(app: &gtk::Application) {
     ));
     top.append(&update);
     top.append(&label("Theme", "subtitle"));
-    let theme = gtk::DropDown::from_strings(&["System", "Light", "Dark"]);
+    let theme = gtk::DropDown::from_strings(&["System", "Light", "Dark", "Custom"]);
+    theme.set_widget_name("archeasy-theme");
     theme.set_selected(selected);
     theme.set_valign(gtk::Align::Center);
     theme.set_tooltip_text(Some(
@@ -454,6 +487,7 @@ fn build_ui(app: &gtk::Application) {
         let name = match selected {
             1 => "light",
             2 => "dark",
+            3 => "custom",
             _ => "system",
         };
         let path = theme_path();
@@ -469,6 +503,35 @@ fn build_ui(app: &gtk::Application) {
         }
     });
     top.append(&theme);
+    let customize = gtk::Button::with_label("Colours…");
+    customize.set_widget_name("archeasy-customize-theme");
+    customize.set_tooltip_text(Some("Customize theme colours"));
+    customize.set_valign(gtk::Align::Center);
+    let weak_window = win.downgrade();
+    let weak_theme = theme.downgrade();
+    customize.connect_clicked(move |_| {
+        let Some(window) = weak_window.upgrade() else {
+            return;
+        };
+        let weak_window = window.downgrade();
+        let weak_theme = weak_theme.clone();
+        let css = custom_css.clone();
+        custom_theme::editor(
+            &window,
+            "Customize ArchEasy theme",
+            custom_theme_path(),
+            move |palette| {
+                css.load_from_data(&palette.arch_css());
+                if let Some(theme) = weak_theme.upgrade() {
+                    theme.set_selected(3);
+                }
+                if let Some(window) = weak_window.upgrade() {
+                    apply_theme(&window, 3, system_dark);
+                }
+            },
+        );
+    });
+    top.append(&customize);
     top.append(&appearance::install_sound(&win));
     let about = gtk::Button::with_label("About");
     about.set_valign(gtk::Align::Center);
@@ -504,8 +567,31 @@ fn build_ui(app: &gtk::Application) {
     let software = gtk::Box::new(gtk::Orientation::Vertical, 14);
     software.set_vexpand(true);
     let stack = gtk::Stack::builder().vexpand(true).build();
+    stack.set_widget_name("archeasy-tabs");
     stack.add_titled(&software, Some("software"), "Software");
     stack.add_titled(&configs::page(&win), Some("configs"), "Configs");
+    let cleaner = gtk::Box::new(gtk::Orientation::Vertical, 0);
+    stack.add_titled(&cleaner, Some("appcleaner"), "AppCleaner");
+    let weak_window = win.downgrade();
+    stack.connect_visible_child_name_notify(move |stack| {
+        if stack.visible_child_name().as_deref() == Some("appcleaner")
+            && cleaner.first_child().is_none()
+            && let Some(window) = weak_window.upgrade()
+        {
+            cleaner.append(&appcleaner::page(&window));
+        }
+    });
+    let cloud = gtk::Box::new(gtk::Orientation::Vertical, 0);
+    stack.add_titled(&cloud, Some("cloud"), "Cloud Backup");
+    let weak_window = win.downgrade();
+    stack.connect_visible_child_name_notify(move |stack| {
+        if stack.visible_child_name().as_deref() == Some("cloud")
+            && cloud.first_child().is_none()
+            && let Some(window) = weak_window.upgrade()
+        {
+            cloud.append(&cloud::page(&window));
+        }
+    });
     let navigation = gtk::StackSwitcher::builder()
         .stack(&stack)
         .halign(gtk::Align::Start)
@@ -620,6 +706,7 @@ fn build_ui(app: &gtk::Application) {
         b.emit_clicked();
     });
     let background = appearance::background(&root);
+    appearance::opening_animation(&background);
     win.set_child(Some(&background));
     win.present();
 }

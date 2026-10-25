@@ -1,6 +1,6 @@
 # Personal defaults
 
-Main source: `/home/danny/Projects/python/notes_configs/nix_os_config`, as requested. Snapshots are embedded in Rust, so the original folders do not need to remain on disk.
+Main source: `~/Projects/python/notes_configs/nix_os_config`, as requested. Snapshots are embedded in Rust, so the original folders do not need to remain on disk.
 
 - Fastfetch default: `fastfetch2` (ASCII logo, hardware/system/terminal sections). Image option: `fastfetch3`, with the machine-specific path rewritten at apply time. `arch.png` comes from the live config because the notes reference the image but do not include it. Image mode needs a Kitty-compatible terminal.
 - Fish: interactive behavior from the third variant in `fish`, with availability guards and the machine-specific LM Studio path removed. Prompt/functions/colors come from the live `~/.config/fish`. No histories, universal variables, or unrelated configs are copied.

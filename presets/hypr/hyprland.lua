@@ -1,4 +1,4 @@
--- Danny's Hyprland preset, adapted from Projects/dotfiles/dotfiles/hypr.
+-- Hyprland desktop preset, adapted from Projects/dotfiles/dotfiles/hypr.
 -- Lua format for Hyprland 0.55+; checked against the 0.56.2 example.
 -- https://wiki.hypr.land/configuring/
 -- Change these commands to choose your terminal, file manager and launcher.

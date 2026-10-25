@@ -1,4 +1,4 @@
-# Danny's interactive terminal setup, adapted for ArchEasy.
+# Interactive terminal setup for ArchEasy.
 if status is-interactive
     if set -q ALACRITTY_WINDOW_ID; and type -q hyfetch
         hyfetch
