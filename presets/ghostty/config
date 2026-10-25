@@ -1,0 +1,14 @@
+
+background-opacity = 0.75
+#TERM = "xterm-256color"
+
+#font-size = 14
+
+
+# Window size when Ghostty opens
+window-width = 120
+window-height = 35
+
+# Font size
+font-size = 14
+theme = TokyoNight Moon

@@ -1,0 +1,11 @@
+# From notes_configs/nix_os_config/starship
+[username]
+style_user = "green bold"
+style_root = "red bold"
+format = "[$user]($style) "
+show_always = true
+
+[hostname]
+ssh_only = false
+format = "[@$hostname](bold blue) "
+disabled = false

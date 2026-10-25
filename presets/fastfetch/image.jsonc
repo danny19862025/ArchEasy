@@ -1,0 +1,107 @@
+{
+  "$schema": "https://github.com/fastfetch-cli/fastfetch/raw/master/doc/json_schema.json",
+  "logo": {
+    "type": "kitty",
+    "source": "__CONFIG_DIR__/fastfetch/arch.png",
+    "height": 20
+  },
+  "display": {
+    "size": {
+      "binaryPrefix": "si"
+    }
+  },
+  "modules": [
+    "title",
+    "separator",
+    {
+      "type": "custom",
+      "format": "\u001b[90m┌───────────────────  ARCH LINUX  🐧  Desktop  Environment ────────────────────┐"
+    },
+    {
+      "type": "custom",
+      "format": "󰇄 HARDWARE",
+      "color": "yellow"
+    },
+    {
+      "type": "cpu",
+      "key": "│├󰻠 CPU",
+      "keyColor": "yellow"
+    },
+    {
+      "type": "memory",
+      "key": "│├󰑭 Memory",
+      "keyColor": "yellow"
+    },
+    {
+      "type": "swap",
+      "key": "│├󰾴 Swap",
+      "keyColor": "yellow"
+    },
+    {
+      "type": "gpu",
+      "key": "│├󰢮 GPU",
+      "keyColor": "yellow"
+    },
+    {
+      "type": "disk",
+      "key": "│└󰋊 Disk",
+      "folders": "/",
+      "showExternal": false,
+      "keyColor": "yellow"
+    },
+    "separator",
+    {
+      "type": "custom",
+      "format": "󱄅 SYSTEM",
+      "color": "red"
+    },
+    {
+      "type": "os",
+      "key": "│├󰊴 OS",
+      "keyColor": "red"
+    },
+    {
+      "type": "kernel",
+      "key": "│├󰌢 Kernel",
+      "keyColor": "red"
+    },
+    {
+      "type": "wm",
+      "key": "│├󱂬 WM",
+      "keyColor": "red"
+    },
+    {
+      "type": "battery",
+      "key": "│├󰂄 Battery",
+      "keyColor": "red"
+    },
+    {
+      "type": "packages",
+      "key": "│└󰏗 Packages",
+      "keyColor": "red"
+    },
+    "separator",
+    {
+      "type": "custom",
+      "format": "󰆍 TERMINAL",
+      "color": "cyan"
+    },
+    {
+      "type": "shell",
+      "key": "│├󰞓 Shell",
+      "keyColor": "cyan"
+    },
+    {
+      "type": "terminal",
+      "key": "│├󰆍 Terminal",
+      "keyColor": "cyan"
+    },
+    {
+      "type": "uptime",
+      "key": "│└󰅐 Uptime",
+      "keyColor": "cyan"
+    },
+    "break",
+    "colors"
+  ]
+}
