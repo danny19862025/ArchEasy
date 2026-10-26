@@ -138,11 +138,23 @@ pub fn background(content: &gtk::Box) -> gtk::Overlay {
         let x = width as f64 - 235.0;
         let y = height as f64 * 0.52;
         let glow = gtk::cairo::RadialGradient::new(x, y, 0.0, x, y, 330.0);
-        glow.add_color_stop_rgba(0.0, 0.09, 0.58, 0.82, 0.24);
-        glow.add_color_stop_rgba(0.45, 0.09, 0.58, 0.82, 0.11);
+        let dark = adw::StyleManager::default().is_dark();
+        let (red, green, blue, strength) = if dark {
+            (0.39, 0.60, 0.84, 0.12)
+        } else {
+            (0.09, 0.58, 0.82, 0.24)
+        };
+        glow.add_color_stop_rgba(0.0, red, green, blue, strength);
+        glow.add_color_stop_rgba(0.45, red, green, blue, strength * 0.45);
         glow.add_color_stop_rgba(1.0, 0.09, 0.58, 0.82, 0.0);
         if cr.set_source(&glow).is_ok() {
             let _ = cr.paint();
+        }
+    });
+    let weak = glow.downgrade();
+    adw::StyleManager::default().connect_dark_notify(move |_| {
+        if let Some(glow) = weak.upgrade() {
+            glow.queue_draw();
         }
     });
     overlay.set_child(Some(&glow));

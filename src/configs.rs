@@ -7,7 +7,8 @@ mod sharing;
 mod workflow;
 #[cfg(test)]
 mod workflow_tests;
-use gtk::{glib, prelude::*};
+use adw::prelude::*;
+use gtk::glib;
 use std::{
     fs,
     io::Write,
@@ -603,15 +604,21 @@ pub fn page(parent: &gtk::ApplicationWindow) -> gtk::Box {
     for preset in PRESETS {
         let card = gtk::Box::new(gtk::Orientation::Vertical, 8);
         card.add_css_class("card");
-        card.append(&super::label(preset.name, "name"));
+        let group = adw::PreferencesGroup::new();
+        let row = adw::ActionRow::builder()
+            .title(preset.name)
+            .use_markup(false)
+            .subtitle(preset.description)
+            .build();
+        row.set_subtitle_lines(2);
+        row.add_prefix(&crate::ux::icon(preset.id));
+        group.add(&row);
+        card.append(&group);
         workflow::badge(
             &card,
             workflow::Plan::builtin(preset).dependencies,
             &refreshers,
         );
-        let description = super::label(preset.description, "subtitle");
-        description.set_wrap(true);
-        card.append(&description);
         previews::add(&card, preset, parent);
         let instructions = super::label(preset.instructions, "");
         instructions.set_wrap(true);

@@ -20,7 +20,7 @@ Installed software, with animated percentage circles by source:
 
 ### Binary release
 
-Download the `x86_64` archive and its SHA-256 file from [GitHub Releases](https://github.com/danny19862025/ArchEasy/releases). Built on Arch Linux for Arch Linux; GTK4 4.10+ is required and is not bundled.
+Download the `x86_64` archive and its SHA-256 file from [GitHub Releases](https://github.com/danny19862025/ArchEasy/releases). Built on Arch Linux for Arch Linux; GTK4 4.10+ and Libadwaita 1.2+ are required and are not bundled.
 
 ```sh
 sha256sum -c archeasy-0.1.0-x86_64-linux.tar.gz.sha256
@@ -70,7 +70,7 @@ On opening, the Arch logo scales and fades in with blue light rings and the Arch
 cargo run --release
 ```
 
-Requires GTK4 (4.10+), Rust, pacman, curl, and a supported terminal (Konsole, Kitty, GNOME Terminal, Xfce Terminal, or xterm). Flatpak search requires Flatpak and configured remotes. **Setup ArchEasy** upgrades Arch and refreshes its package database, installs Flatpak/build tools/Python, builds paru if missing as your desktop user after PKGBUILD review, and adds Flathub for your account. Requires sudo access and a working Arch mirror configuration. [Paru installation](https://github.com/Morganamilo/paru#installation), [Flatpak remotes](https://docs.flatpak.org/en/latest/using-flatpak.html).
+Requires GTK4 (4.10+), Libadwaita (1.2+), Rust, pacman, curl, and a supported terminal (Konsole, Kitty, GNOME Terminal, Xfce Terminal, or xterm). Flatpak search requires Flatpak and configured remotes. **Setup ArchEasy** upgrades Arch and refreshes its package database, installs Flatpak/build tools/Python, builds paru if missing as your desktop user after PKGBUILD review, and adds Flathub for your account. Requires sudo access and a working Arch mirror configuration. [Paru installation](https://github.com/Morganamilo/paru#installation), [Flatpak remotes](https://docs.flatpak.org/en/latest/using-flatpak.html).
 
 The Install button opens an interactive terminal. Passwords, transaction confirmation, dependency choices, and AUR build review remain in the package manager. Pacman uses `sudo pacman -Syu --needed` so installation can also update the system. Flatpak installation uses your user account. Each result has a link beside Install: **Arch package** opens the official Arch package listing filtered to that exact package name, **AUR page** opens its AUR page and build files, and Flathub results have a **Flathub page** link. Links remain available for installed packages. Close an installation terminal only after its transaction finishes. Search again afterward to refresh installed status.
 
@@ -208,6 +208,14 @@ Config workflow references: [GitHub repository contents](https://docs.github.com
 
 MIT licensed; see [LICENSE](LICENSE). Third-party AppCleaner attribution is retained in [assets/AppCleaner-LICENSE](assets/AppCleaner-LICENSE); asset notes are in [assets/README.md](assets/README.md).
 
-[CI](.github/workflows/ci.yml) fetches locked dependencies before running the offline Verify commands in an Arch Linux container. Five graphical Rust tests are intentionally excluded from headless runs.
+[CI](.github/workflows/ci.yml) fetches locked dependencies before running the offline Verify commands in an Arch Linux container. Six graphical Rust tests are intentionally excluded from headless runs.
 
 Maintainers can build a binary archive and SHA-256 file with `bash scripts/package-release.sh` after `cargo fetch --locked`. Pushing a matching version tag (for example `v0.1.0`) runs [the release workflow](.github/workflows/release.yml), verifies the code, and publishes the archive and checksums. The workflow also supports manual dispatch for an existing tag. Presets, scripts, logo and click sound used by the app are embedded in the binary.
+
+### Native cards and guided setup
+
+Software search updates as you type (220 ms debounce), with All, Pacman, AUR, Flatpak, and Installed filters. Each source appears as it finishes; older queries cannot replace newer results. Press `/` to focus search, `Esc` to clear, and Down or Enter to focus results. Use arrows to select a row and Enter to request installation in your terminal. Source, available download size, and installed status appear directly in each card. Missing size metadata is labelled explicitly. Package icons use the active desktop icon theme, including Papirus names with symbolic fallbacks.
+
+First launch offers helper setup, Danny’s configs, and an update review, with Skip. Config review shows the file count, backup location, and an expandable View Diff. Successful config application offers an Undo toast using that operation’s backup. The system update review checks package counts before enabling Start, lists the actual commands, and offers available snapshot tools. Official update counts use cached Pacman metadata and may change after refreshing. System, Light, and Dark use Libadwaita’s style manager; dark appearance uses a softer blue halo.
+
+Run `python3 tests/native_ui_smoke.py` in a desktop session to verify live search, stale-result handling, Installed filtering, onboarding, toast actions, and update review using fake package tools and temporary settings. A preview is saved to `/tmp/archeasy-native-preview.png`.

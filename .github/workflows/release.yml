@@ -15,7 +15,7 @@ jobs:
     container: archlinux:base-devel
     steps:
       - name: Install build dependencies
-        run: pacman -Syu --noconfirm --needed git rust gtk4 pkgconf github-cli lua python rclone
+        run: pacman -Syu --noconfirm --needed git rust gtk4 libadwaita pkgconf github-cli lua python rclone
       - uses: actions/checkout@v4
         with:
           ref: ${{ inputs.tag || github.ref }}
@@ -46,5 +46,5 @@ jobs:
           else
             gh release create "$RELEASE_TAG" dist/*.tar.gz dist/*.sha256 \
               --repo "$GITHUB_REPOSITORY" --verify-tag --title "ArchEasy $RELEASE_TAG" \
-              --notes "Linux x86_64 binary built on Arch Linux. Requires GTK4 4.10+ and a supported terminal. Extract the archive, install archeasy on PATH, then run bash scripts/install-desktop.sh for the app launcher."
+              --notes "Linux x86_64 binary built on Arch Linux. Requires GTK4 4.10+, Libadwaita 1.2+, and a supported terminal. Extract the archive, install archeasy on PATH, then run bash scripts/install-desktop.sh for the app launcher."
           fi

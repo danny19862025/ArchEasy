@@ -46,6 +46,32 @@ pub fn window(
     let version = gtk::Label::new(Some(&format!("Version {}", env!("CARGO_PKG_VERSION"))));
     version.add_css_class("subtitle");
     body.append(&version);
+    if name == "ArchEasy" {
+        let author = gtk::Label::new(Some("Created by Danny Rudd"));
+        author.set_widget_name("about-author");
+        author.add_css_class("heading");
+        body.append(&author);
+
+        let profile = gtk::LinkButton::new("https://github.com/danny19862025");
+        profile.set_widget_name("about-github");
+        profile.set_halign(gtk::Align::Center);
+        profile.set_tooltip_text(Some("Open Danny Rudd’s GitHub profile"));
+        let content = gtk::Box::new(gtk::Orientation::Horizontal, 10);
+        if let Ok(loader) = gtk::gdk_pixbuf::PixbufLoader::with_type("svg") {
+            loader.set_size(48, 48);
+            if loader.write(include_bytes!("../assets/github.svg")).is_ok()
+                && loader.close().is_ok()
+                && let Some(pixbuf) = loader.pixbuf()
+            {
+                let logo = gtk::Image::from_pixbuf(Some(&pixbuf));
+                logo.set_pixel_size(24);
+                content.append(&logo);
+            }
+        }
+        content.append(&gtk::Label::new(Some("github.com/danny19862025")));
+        profile.set_child(Some(&content));
+        body.append(&profile);
+    }
     let description = gtk::Label::new(Some(comments));
     description.set_wrap(true);
     description.set_max_width_chars(60);

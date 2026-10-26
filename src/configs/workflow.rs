@@ -381,7 +381,12 @@ pub(super) fn review_dialog(
     body.set_margin_start(14);
     body.set_margin_end(14);
     let note = super::super::label(
-        "Current files on the left; proposed files on the right. Highlighted lines change. A complete backup is saved before writing any file.",
+        &format!(
+            "Will write {} files. Backup will be saved to {}/{}/<snapshot-id> before changes. Current files on the left; proposed files on the right. Highlighted lines change.",
+            plan.files.len(),
+            backups_dir().display(),
+            plan.id
+        ),
         "subtitle",
     );
     note.set_wrap(true);
@@ -400,7 +405,13 @@ pub(super) fn review_dialog(
         pane.set_end_child(Some(&diff_view(&new, &added, "#255a48")));
         notebook.append_page(&pane, Some(&gtk::Label::new(Some(name))));
     }
-    body.append(&notebook);
+    let diff = gtk::Expander::builder()
+        .label("View Diff")
+        .expanded(true)
+        .child(&notebook)
+        .vexpand(true)
+        .build();
+    body.append(&diff);
     let install = gtk::CheckButton::with_label(
         "Install missing dependencies first (Pacman may update the system)",
     );
@@ -444,6 +455,7 @@ pub(super) fn review_dialog(
                             backup.display(),
                             history::message(&backup)
                         ));
+                        applied_toast(&plan, backup.clone(), &status, &refresh);
                         dialog.close();
                         refresh.emit_clicked();
                         if let Some(preset) = preview
@@ -500,6 +512,7 @@ pub(super) fn start_setup(
         "Backup ZIP saved: {}. Setup terminal opened; review its package/password prompts.",
         backup.with_extension("zip").display()
     ));
+    let completed_plan = plan.clone();
     let weak_status = status.downgrade();
     let weak_refresh = refresh.downgrade();
     glib::timeout_add_local(std::time::Duration::from_millis(500), move || {
@@ -519,10 +532,14 @@ pub(super) fn start_setup(
                     "stopped or partially completed"
                 },
                 summary
+                    .as_ref()
                     .map(|p| format!("Config backup: {p}."))
                     .unwrap_or_default()
             ));
             if let Some(refresh) = weak_refresh.upgrade() {
+                if let Some(backup) = summary {
+                    applied_toast(&completed_plan, PathBuf::from(backup), &status, &refresh);
+                }
                 refresh.emit_clicked();
             }
             let _ = fs::remove_file(&path);
@@ -612,4 +629,37 @@ pub(super) fn dependency_met(command: &str) -> bool {
             .stderr(std::process::Stdio::null())
             .status()
             .is_ok_and(|status| status.success())
+}
+
+fn applied_toast(plan: &Plan, backup: PathBuf, status: &gtk::Label, refresh: &gtk::Button) {
+    let name = plan.name.clone();
+    let plan = plan.clone();
+    let applied = reviewed(&plan, &glib::user_config_dir());
+    let status = status.downgrade();
+    let refresh = refresh.downgrade();
+    crate::ux::undo_toast(
+        &format!("{name} config applied • backup saved"),
+        move || {
+            if applied.is_err() || reviewed(&plan, &glib::user_config_dir()) != applied {
+                crate::ux::toast(
+                    "Configs changed after apply. Review the backup in Config history before restoring.",
+                );
+                return;
+            }
+            match restore_snapshot(&backup, &glib::user_config_dir()) {
+                Ok(()) => {
+                    crate::ux::toast("Previous config restored");
+                    if let Some(refresh) = refresh.upgrade() {
+                        refresh.emit_clicked();
+                    }
+                }
+                Err(e) => {
+                    if let Some(status) = status.upgrade() {
+                        status.set_text(&e);
+                    }
+                    crate::ux::toast(&format!("Could not undo: {e}"));
+                }
+            }
+        },
+    );
 }

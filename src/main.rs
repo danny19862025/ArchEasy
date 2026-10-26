@@ -10,8 +10,10 @@ mod store;
 mod system_export;
 mod system_tools;
 mod task_search;
+mod ux;
 
-use gtk::{glib, prelude::*};
+use adw::prelude::*;
+use gtk::glib;
 use std::{
     process::{Command, Stdio},
     sync::mpsc,
@@ -355,6 +357,7 @@ fn main() -> glib::ExitCode {
             glib::ExitCode::FAILURE
         };
     }
+    adw::init().expect("Libadwaita initialization");
     let app = gtk::Application::builder()
         .application_id("io.github.archeasy.ArchEasy")
         .build();
@@ -366,10 +369,6 @@ window.archeasy { background: @theme_bg_color; color: @theme_fg_color; }
 .archeasy label { color: inherit; }
 .archeasy headerbar { background: transparent; color: inherit; }
 .archeasy .about-close { font-size: 22px; min-width: 24px; padding: 2px 10px; }
-.archeasy list { background: transparent; color: inherit; }
-.archeasy row { background: transparent; color: inherit; }
-.archeasy row:hover { background: alpha(@theme_fg_color, 0.06); }
-.archeasy row:selected { background: #55cbb6; color: #09251f; }
 .archeasy row:selected label { color: inherit; }
 .archeasy .title { font-size: 32px; font-weight: 800; }
 .archeasy .subtitle { opacity: 0.8; }
@@ -402,6 +401,10 @@ window.archeasy { background: @theme_bg_color; color: @theme_fg_color; }
 .archeasy .card { border: 1px solid alpha(@theme_fg_color, 0.08); }
 .archeasy .suggested-action:hover { box-shadow: 0 0 20px 2px alpha(#55cbb6, 0.45); }
 .archeasy entry { padding: 10px; border-radius: 10px; }
+.archeasy .filter-chip:checked { background: #3584e4; color: white; }
+.archeasy row:selected { background: alpha(#3584e4, 0.18); color: inherit; }
+.dark button:hover { box-shadow: 0 0 12px alpha(#78a9df, 0.16); border-color: alpha(#78a9df, 0.45); }
+.dark .suggested-action:hover { box-shadow: 0 0 12px alpha(#78a9df, 0.20); }
 window.archeasy.dark { background: #101722; color: #e7eef8; }
 .dark .subtitle { color: #aebdd0; opacity: 1; }
 .dark .card { background: #1b2738; }
@@ -441,30 +444,18 @@ fn apply_theme(window: &gtk::ApplicationWindow, selected: u32, system_dark: bool
         3 => window.add_css_class("custom"),
         _ => {}
     }
-    if let Some(settings) = gtk::Settings::default() {
-        // GTK 4.20+ follows the desktop color scheme natively. Keep the
-        // older setting as a fallback for systems running GTK 4.10–4.18.
-        if let Some(property) = settings.find_property("gtk-interface-color-scheme") {
-            let nick = match selected {
-                1 => "light",
-                2 => "dark",
-                3 if custom_theme::Palette::load(&custom_theme_path()).is_light() => "light",
-                3 => "dark",
-                _ => "default",
-            };
-            if let Some(value) = glib::EnumClass::with_type(property.value_type())
-                .and_then(|class| class.to_value_by_nick(nick))
-            {
-                settings.set_property_from_value("gtk-interface-color-scheme", &value);
-            }
-        } else {
-            settings.set_gtk_application_prefer_dark_theme(match selected {
-                1 => false,
-                2 => true,
-                3 => !custom_theme::Palette::load(&custom_theme_path()).is_light(),
-                _ => system_dark,
-            });
+    adw::StyleManager::default().set_color_scheme(match selected {
+        1 => adw::ColorScheme::ForceLight,
+        2 => adw::ColorScheme::ForceDark,
+        3 if custom_theme::Palette::load(&custom_theme_path()).is_light() => {
+            adw::ColorScheme::ForceLight
         }
+        3 => adw::ColorScheme::ForceDark,
+        _ => adw::ColorScheme::Default,
+    });
+    let _ = system_dark;
+    if selected == 0 && adw::StyleManager::default().is_dark() {
+        window.add_css_class("dark");
     }
 }
 fn custom_theme_path() -> std::path::PathBuf {
@@ -497,6 +488,19 @@ fn build_ui(app: &gtk::Application) {
         gtk::STYLE_PROVIDER_PRIORITY_APPLICATION,
     );
     apply_theme(&win, selected, system_dark);
+    let weak = win.downgrade();
+    adw::StyleManager::default().connect_dark_notify(move |_| {
+        if let Some(window) = weak.upgrade()
+            && !window.has_css_class("light")
+            && !window.has_css_class("custom")
+        {
+            if adw::StyleManager::default().is_dark() {
+                window.add_css_class("dark");
+            } else {
+                window.remove_css_class("dark");
+            }
+        }
+    });
     let root = gtk::Box::new(gtk::Orientation::Vertical, 14);
     root.set_margin_top(28);
     root.set_margin_bottom(22);
@@ -600,7 +604,7 @@ fn build_ui(app: &gtk::Application) {
         &win,
         "ArchEasy",
         "system-software-install",
-        "A beginner-friendly software browser for Arch Linux.\n\nSearch Pacman, AUR, and Flatpak in one place. Open package pages and start installations with your usual package manager.\n\nPacman installations include system updates. Review community AUR build scripts before installing. Password and confirmation prompts appear in your terminal.\n\nBuilt with Rust and GTK4.",
+        "A beginner-friendly software browser for Arch Linux.\n\nSearch Pacman, AUR, and Flatpak in one place. Open package pages and start installations with your usual package manager.\n\nPacman installations include system updates. Review community AUR build scripts before installing. Password and confirmation prompts appear in your terminal.\n\nBuilt with Rust, GTK4, and Libadwaita.",
     );
     about.connect_clicked(move |_| dialog.present());
     top.append(&about);
@@ -665,115 +669,16 @@ fn build_ui(app: &gtk::Application) {
         .build();
     root.append(&navigation);
     root.append(&stack);
-    let bar = gtk::Box::new(gtk::Orientation::Horizontal, 10);
-    let entry = gtk::Entry::builder()
-        .placeholder_text("Search apps or tasks, e.g. video editor like Premiere")
-        .hexpand(true)
-        .build();
-    let filter = gtk::DropDown::from_strings(&["All sources", "Pacman", "AUR", "Flatpak"]);
-    let button = gtk::Button::with_label("Search");
-    button.add_css_class("suggested-action");
-    bar.append(&entry);
-    bar.append(&filter);
-    bar.append(&button);
-    software.append(&bar);
-    let hint = label(
-        "Pacman: official packages   •   AUR: community build scripts   •   Flatpak: sandboxed apps",
-        "subtitle",
-    );
-    hint.set_wrap(true);
-    software.append(&hint);
-    let status = label(
-        "Search to get started. Installation prompts open in your terminal.",
-        "subtitle",
-    );
-    status.set_wrap(true);
-    software.append(&status);
-    let (queue, queue_run) = store::queue_bar(&software, &status);
-    let list = gtk::Box::new(gtk::Orientation::Vertical, 10);
-    let scroll = gtk::ScrolledWindow::builder()
-        .vexpand(true)
-        .hscrollbar_policy(gtk::PolicyType::Never)
-        .child(&list)
-        .build();
-    software.append(&scroll);
-    let footer = label(
-        "Pacman installs include system updates. Review terminal prompts before continuing.\nAUR packages are community maintained: review their PKGBUILD before installing. Search again after installation to refresh status.",
-        "subtitle",
-    );
-    footer.set_wrap(true);
-    software.append(&footer);
-    let setup = gtk::Button::with_label("Setup ArchEasy · paru + Flathub + package database");
-    setup.set_halign(gtk::Align::Start);
-    let s = status.clone();
-    setup.connect_clicked(move |_| {
-        let r = terminal(vec![
-            "/usr/bin/bash".into(),
-            "-c".into(),
-            include_str!("../scripts/first-run.sh").into(),
-            "archeasy-first-run".into(),
-        ]);
-        s.set_text(&r.err().unwrap_or(
-            "ArchEasy setup opened in your terminal. Search again when it finishes.".into(),
-        ));
-    });
-    software.append(&setup);
-    let help = gtk::LinkButton::with_label(
-        "https://wiki.archlinux.org/title/AUR_helpers",
-        "AUR helper setup instructions",
-    );
-    help.set_halign(gtk::Align::Start);
-    software.append(&help);
-    let e = entry.clone();
-    let f = filter.clone();
-    let b = button.clone();
-    let l = list.clone();
-    let s = status.clone();
-    button.connect_clicked(move |_| {
-        let query = e.text().trim().to_string(); if query.len() < 2 { s.set_text("Type at least two characters to search."); return; }
-        while let Some(child) = l.first_child() { l.remove(&child); } b.set_sensitive(false); s.set_text("Searching your software sources…");
-        let selected = f.selected(); let (tx, rx) = mpsc::channel();
-        thread::spawn(move || { let sources = ["Pacman", "AUR", "Flatpak"]; let mut jobs = vec![];
-            for (i, source) in sources.into_iter().enumerate() { if selected == 0 || selected == i as u32 + 1 { let q = query.clone(); jobs.push((source, thread::spawn(move || search(&q, source)))); } }
-            let mut packages = vec![]; let mut errors = vec![];
-            for (source, job) in jobs { match job.join() { Ok(Ok(mut results)) => packages.append(&mut results), Ok(Err(e)) => errors.push(format!("{source}: {e}")), Err(_) => errors.push(format!("{source}: search failed")) } }
-            let _ = tx.send((packages, errors));
-        });
-        let l = l.clone(); let s = s.clone(); let b = b.clone();
-        let queue = queue.clone(); let queue_run = queue_run.clone();
-        glib::timeout_add_local(Duration::from_millis(100), move || {
-            let Ok((packages, errors)) = rx.try_recv() else { return glib::ControlFlow::Continue; };
-            b.set_sensitive(true); let count = packages.len();
-            s.set_text(&format!("{count} results{}. {}", if count > 150 { " (showing the first 150; narrow your search)" } else { "" }, errors.join(" • ")));
-            for p in packages.into_iter().take(150) {
-                let row = gtk::Box::new(gtk::Orientation::Horizontal, 16); row.add_css_class("card");
-                let info = gtk::Box::new(gtk::Orientation::Vertical, 6); info.set_hexpand(true);
-                let title = label(&p.name, "name"); title.set_selectable(true); info.append(&title);
-                info.append(&label(&format!("{}   {}   {}", p.source, p.remote, p.version), "badge"));
-                let desc = label(&p.description, "subtitle"); desc.set_wrap(true); desc.set_max_width_chars(70); info.append(&desc); row.append(&info);
-                if let Some((url, title)) = package_page(&p) {
-                    let page = gtk::LinkButton::with_label(&url, title);
-                    page.set_valign(gtk::Align::Center);
-                    page.set_tooltip_text(Some(&url));
-                    row.append(&page);
-                }
-                row.append(&store::checkbox(&p, &queue, &queue_run));
-                if p.source == "Flatpak" { let permissions = gtk::Button::with_label("Permissions"); let id = p.name.clone(); let scope = "--user"; permissions.connect_clicked(move |_| flatpak_permissions::open(&id, scope)); row.append(&permissions); }
-                let install_button = gtk::Button::with_label(if p.installed { "Installed ✓" } else { "Install" }); install_button.set_valign(gtk::Align::Center); install_button.set_sensitive(!p.installed); install_button.add_css_class("suggested-action");
-                let s = s.clone(); install_button.connect_clicked(move |button| { match install(&p) { Ok(()) => { button.set_sensitive(false); button.set_label("Check terminal"); s.set_text(&format!("Installation requested for {}. Enter your password and confirm in the terminal. Search again when finished.", p.name)); }, Err(e) => { s.set_text(&e); show_error(&e); } } });
-                row.append(&install_button); l.append(&row);
-            }
-            glib::ControlFlow::Break
-        });
-    });
-    let b = button.clone();
-    entry.connect_activate(move |_| {
-        b.emit_clicked();
-    });
+    ux::software(&software, &win, &stack);
+
     let background = appearance::background(&root);
     appearance::opening_animation(&background);
-    win.set_child(Some(&background));
+    let toasts = adw::ToastOverlay::new();
+    toasts.set_child(Some(&background));
+    win.set_child(Some(&toasts));
+    ux::register_toasts(&toasts);
     win.present();
+    ux::onboarding(&win, &stack, &setup_arch, &update);
 }
 #[cfg(test)]
 mod tests {
@@ -838,3 +743,6 @@ mod tests {
 
 #[cfg(test)]
 mod update_tests;
+
+#[cfg(test)]
+mod ux_tests;

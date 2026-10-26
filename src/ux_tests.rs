@@ -1,0 +1,208 @@
+use super::*;
+fn descendants(widget: &impl IsA<gtk::Widget>) -> Vec<gtk::Widget> {
+    let mut all = vec![widget.as_ref().clone()];
+    let mut child = widget.as_ref().first_child();
+    while let Some(next) = child {
+        all.extend(descendants(&next));
+        child = next.next_sibling();
+    }
+    all
+}
+fn pump(duration: Duration) {
+    let end = std::time::Instant::now() + duration;
+    while std::time::Instant::now() < end {
+        while glib::MainContext::default().pending() {
+            glib::MainContext::default().iteration(false);
+        }
+        thread::sleep(Duration::from_millis(10));
+    }
+}
+#[test]
+#[ignore = "Requires a desktop display and ARCHEASY_UI_FIXTURE=1 fake package tools"]
+fn native_search_and_guided_flows() {
+    assert_eq!(std::env::var("ARCHEASY_UI_FIXTURE").as_deref(), Ok("1"));
+    adw::init().unwrap();
+    let app = gtk::Application::builder()
+        .application_id("io.github.archeasy.UITest")
+        .build();
+    app.register(None::<&gtk::gio::Cancellable>).unwrap();
+    let win = gtk::ApplicationWindow::builder()
+        .application(&app)
+        .default_width(1000)
+        .default_height(760)
+        .build();
+    let page = gtk::Box::new(gtk::Orientation::Vertical, 12);
+    system_tools::margins(&page);
+    let tabs = gtk::Stack::new();
+    tabs.add_named(&page, Some("software"));
+    ux::software(&page, &win, &tabs);
+    let overlay = adw::ToastOverlay::new();
+    overlay.set_child(Some(&tabs));
+    ux::register_toasts(&overlay);
+    win.set_child(Some(&overlay));
+    win.present();
+    pump(Duration::from_millis(300));
+    let widgets = descendants(&page);
+    let entry = widgets
+        .iter()
+        .find_map(|w| w.clone().downcast::<gtk::Entry>().ok())
+        .unwrap();
+    let list = widgets
+        .iter()
+        .filter(|w| w.widget_name() == "software-results")
+        .find_map(|w| w.clone().downcast::<gtk::ListBox>().ok())
+        .unwrap();
+    let states = widgets
+        .iter()
+        .find_map(|w| w.clone().downcast::<gtk::Stack>().ok())
+        .unwrap();
+    assert_eq!(states.visible_child_name().as_deref(), Some("empty"));
+    let pacman = widgets
+        .iter()
+        .filter_map(|w| w.clone().downcast::<gtk::ToggleButton>().ok())
+        .find(|b| b.label().as_deref() == Some("Pacman"))
+        .unwrap();
+    pacman.set_active(true);
+    entry.set_text("fire");
+    pump(Duration::from_millis(300));
+    entry.set_text("ghost");
+    pump(Duration::from_millis(1000));
+    let row = list
+        .row_at_index(0)
+        .unwrap()
+        .downcast::<adw::ActionRow>()
+        .unwrap();
+    assert_eq!(row.title(), "ghostty");
+    assert!(
+        row.subtitle()
+            .unwrap()
+            .contains("Official • 120 KiB • Installed")
+    );
+    assert!(
+        list.row_at_index(1).is_none(),
+        "Old results must not be appended"
+    );
+    let installed = widgets
+        .iter()
+        .filter_map(|w| w.clone().downcast::<gtk::ToggleButton>().ok())
+        .find(|b| b.label().as_deref() == Some("Installed"))
+        .unwrap();
+    installed.set_active(true);
+    pump(Duration::from_millis(600));
+    assert!(list.row_at_index(0).is_some());
+    entry.set_text("");
+    pump(Duration::from_millis(300));
+    assert!(list.first_child().is_none());
+    assert_eq!(states.visible_child_name().as_deref(), Some("empty"));
+    let undo = std::rc::Rc::new(std::cell::Cell::new(false));
+    let clicked = undo.clone();
+    ux::undo_toast("Fish config applied • backup saved", move || {
+        clicked.set(true)
+    });
+    pump(Duration::from_millis(200));
+    let undo_button = descendants(&overlay)
+        .into_iter()
+        .filter_map(|w| w.downcast::<gtk::Button>().ok())
+        .find(|b| b.label().as_deref() == Some("Undo"))
+        .unwrap();
+    undo_button.emit_clicked();
+    assert!(undo.get());
+    let setup = gtk::Button::new();
+    let update = gtk::Button::new();
+    ux::onboarding(&win, &tabs, &setup, &update);
+    pump(Duration::from_millis(200));
+    let onboarding = gtk::Window::list_toplevels()
+        .into_iter()
+        .filter_map(|w| w.downcast::<gtk::Window>().ok())
+        .find(|w| w.title().as_deref() == Some("Welcome to ArchEasy"))
+        .unwrap();
+    let skip = descendants(&onboarding)
+        .into_iter()
+        .filter_map(|w| w.downcast::<gtk::Button>().ok())
+        .find(|b| b.label().as_deref() == Some("Skip"))
+        .unwrap();
+    skip.emit_clicked();
+    pump(Duration::from_millis(100));
+    assert!(
+        glib::user_config_dir()
+            .join("archeasy/onboarding-complete")
+            .exists()
+    );
+    system_tools::update_dialog(&win, &gtk::Label::new(None));
+    pump(Duration::from_millis(600));
+    let dialog = gtk::Window::list_toplevels()
+        .into_iter()
+        .filter_map(|w| w.downcast::<gtk::Window>().ok())
+        .find(|w| w.title().as_deref() == Some("Review system update"))
+        .unwrap();
+    let titles: Vec<_> = descendants(&dialog)
+        .iter()
+        .filter_map(|w| w.clone().downcast::<adw::ActionRow>().ok())
+        .map(|row| row.title().to_string())
+        .collect();
+    assert!(
+        titles.iter().any(|s| s.contains("Found 2 Pacman + 1 AUR")),
+        "{titles:?}"
+    );
+    dialog.close();
+    win.close();
+    build_ui(&app);
+    pump(Duration::from_millis(2100));
+    let win = app.active_window().unwrap();
+    let widgets = descendants(&win);
+    let theme = widgets
+        .iter()
+        .filter(|w| w.widget_name() == "archeasy-theme")
+        .find_map(|w| w.clone().downcast::<gtk::DropDown>().ok())
+        .unwrap();
+    theme.set_selected(1);
+    pump(Duration::from_millis(100));
+    assert!(!adw::StyleManager::default().is_dark());
+    assert!(win.has_css_class("light"));
+    theme.set_selected(2);
+    pump(Duration::from_millis(100));
+    assert!(adw::StyleManager::default().is_dark());
+    assert!(win.has_css_class("dark"));
+    let apply = widgets
+        .iter()
+        .filter(|w| w.widget_name() == "apply-terminal-stack")
+        .find_map(|w| w.clone().downcast::<gtk::Button>().ok())
+        .unwrap();
+    apply.emit_clicked();
+    pump(Duration::from_millis(150));
+    let diff = gtk::Window::list_toplevels()
+        .into_iter()
+        .filter_map(|w| w.downcast::<gtk::Window>().ok())
+        .find(|w| w.widget_name() == "config-diff-dialog")
+        .unwrap();
+    let labels: Vec<_> = descendants(&diff)
+        .into_iter()
+        .filter_map(|w| w.downcast::<gtk::Label>().ok())
+        .map(|l| l.text().to_string())
+        .collect();
+    assert!(
+        labels
+            .iter()
+            .any(|s| s.contains("Will write") && s.contains("Backup will be saved to"))
+    );
+    assert!(descendants(&diff).iter().any(|w| w.is::<gtk::Expander>()));
+    assert!(
+        !glib::user_config_dir().join("fish/config.fish").exists(),
+        "Preview must not write configs"
+    );
+    diff.close();
+    pump(Duration::from_millis(100));
+    if let Ok(path) = std::env::var("ARCHEASY_UI_SCREENSHOT") {
+        let paintable = gtk::WidgetPaintable::new(Some(&win));
+        let snapshot = gtk::Snapshot::new();
+        paintable.snapshot(&snapshot, win.width() as f64, win.height() as f64);
+        let node = snapshot.to_node().unwrap();
+        let renderer = gtk::gsk::Renderer::for_surface(&win.surface().unwrap()).unwrap();
+        renderer
+            .render_texture(&node, None)
+            .save_to_png(path)
+            .unwrap();
+        renderer.unrealize();
+    }
+    win.close();
+}

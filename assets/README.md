@@ -7,3 +7,5 @@
 - `screenshots/store.png`, `screenshots/configs.png` and `screenshots/installed.png`: captures of the running GTK app.
 
 The Arch Linux logo is an Arch Linux trademark; the project MIT license does not grant trademark rights.
+
+- `github.svg`: GitHub mark from [Primer Octicons](https://github.com/primer/octicons/blob/main/icons/mark-github-16.svg), coloured blue for visibility in both appearances. Octicons is MIT licensed; see `Octicons-LICENSE`. GitHub retains its trademark rights.

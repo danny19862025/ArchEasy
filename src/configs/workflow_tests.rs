@@ -254,7 +254,7 @@ fn wait_until(condition: impl Fn() -> bool) {
 #[ignore = "requires a desktop and isolated XDG config directories"]
 #[allow(deprecated)]
 fn configs_workflow_ui() {
-    gtk::init().unwrap();
+    adw::init().unwrap();
     let app = gtk::Application::builder()
         .application_id("io.github.archeasy.ConfigTest")
         .build();

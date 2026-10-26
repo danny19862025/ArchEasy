@@ -31,7 +31,7 @@ pub fn task_with_finish<T: Send + 'static>(
 }
 pub fn update_dialog(parent: &gtk::ApplicationWindow, status: &gtk::Label) {
     let dialog = gtk::Dialog::builder()
-        .title("Snapshot before system update")
+        .title("Review system update")
         .transient_for(parent)
         .modal(true)
         .default_width(550)
@@ -40,6 +40,59 @@ pub fn update_dialog(parent: &gtk::ApplicationWindow, status: &gtk::Label) {
     dialog.set_widget_name("system-update-snapshot-dialog");
     let body = dialog.content_area();
     margins(&body);
+    let summary = adw::PreferencesGroup::new();
+    summary.set_title("Update summary");
+    let totals = adw::ActionRow::builder()
+        .title("Checking available updates…")
+        .subtitle("No system changes have started")
+        .build();
+    totals.add_prefix(&crate::ux::icon("software-update-available-symbolic"));
+    summary.add(&totals);
+    let helper = ["paru", "yay"].into_iter().find(|name| available(name));
+    let commands = format!(
+        "Will run sudo pacman -Syu{}{}",
+        helper
+            .map(|h| format!(" then {h} -Sua"))
+            .unwrap_or_else(|| "; AUR skipped (no paru/yay)".into()),
+        if available("flatpak") {
+            ", then flatpak update --user / --system"
+        } else {
+            ""
+        }
+    );
+    let command_row = adw::ActionRow::builder()
+        .title("Review commands")
+        .subtitle(&commands)
+        .build();
+    command_row.set_subtitle_lines(3);
+    summary.add(&command_row);
+    body.append(&summary);
+    let (tx, rx) = mpsc::channel();
+    thread::spawn(move || {
+        let _ = tx.send(update_summary(helper));
+    });
+    let start = dialog.add_button("Start update", gtk::ResponseType::Accept);
+    start.set_sensitive(false);
+    let totals_weak = totals.downgrade();
+    glib::timeout_add_local(Duration::from_millis(100), move || {
+        let Some(totals) = totals_weak.upgrade() else {
+            return glib::ControlFlow::Break;
+        };
+        match rx.try_recv() {
+            Ok(text) => {
+                start.set_sensitive(true);
+                totals.set_title(&text);
+                totals.set_subtitle("Pacman uses cached repository metadata; the transaction refreshes it. Counts may change.");
+                glib::ControlFlow::Break
+            }
+            Err(mpsc::TryRecvError::Empty) => glib::ControlFlow::Continue,
+            Err(_) => {
+                start.set_sensitive(true);
+                totals.set_title("Update check unavailable; review the terminal transaction");
+                glib::ControlFlow::Break
+            }
+        }
+    });
     let note = label(
         "Create a snapshot before updating? Timeshift must already be configured; Snapper uses its root configuration. A snapshot failure stops the update. Snapshots cover the configured filesystem and are not a backup of every disk or home folder.",
         "subtitle",
@@ -66,10 +119,61 @@ pub fn update_dialog(parent: &gtk::ApplicationWindow, status: &gtk::Label) {
     }
     body.append(&picker);
     dialog.add_button("Cancel", gtk::ResponseType::Cancel);
-    dialog.add_button("Start update", gtk::ResponseType::Accept);
     let status = status.clone();
     dialog.connect_response(move |dialog, response| { if response == gtk::ResponseType::Accept { let snapshot = picker.active_id().unwrap_or_else(|| "none".into()); match system_update(&snapshot) { Ok(()) => { status.set_text("Update terminal opened. Snapshot creation runs first if selected; review its result and the package prompts."); status.set_visible(true); }, Err(e) => status.set_text(&e) } } dialog.close(); });
     dialog.present();
+}
+fn update_count(program: &str, args: &[&str], empty_exit: bool) -> String {
+    let result = Command::new("timeout")
+        .args(["30", program])
+        .args(args)
+        .env("LC_ALL", "C")
+        .output();
+    match result {
+        Ok(out) if out.status.success() => String::from_utf8_lossy(&out.stdout)
+            .lines()
+            .filter(|line| !line.trim().is_empty())
+            .count()
+            .to_string(),
+        Ok(out)
+            if empty_exit
+                && out.status.code() == Some(1)
+                && out.stdout.is_empty()
+                && out.stderr.is_empty() =>
+        {
+            "0".into()
+        }
+        _ => "unknown".into(),
+    }
+}
+fn update_summary(helper: Option<&str>) -> String {
+    let official = update_count("pacman", &["-Quq"], true);
+    let aur = helper
+        .map(|h| update_count(h, &["-Qua"], true))
+        .unwrap_or_else(|| "unavailable".into());
+    let flatpak = if available("flatpak") {
+        format!(
+            " • {} user + {} system Flatpak",
+            update_count(
+                "flatpak",
+                &["remote-ls", "--updates", "--user", "--columns=application"],
+                false
+            ),
+            update_count(
+                "flatpak",
+                &[
+                    "remote-ls",
+                    "--updates",
+                    "--system",
+                    "--columns=application"
+                ],
+                false
+            )
+        )
+    } else {
+        String::new()
+    };
+    format!("Found {official} Pacman + {aur} AUR updates{flatpak}")
 }
 pub fn margins(body: &gtk::Box) {
     body.set_spacing(12);

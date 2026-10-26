@@ -6,7 +6,7 @@ pkgdesc='A beginner-friendly Arch Linux software browser and config manager'
 arch=('x86_64' 'aarch64')
 url='https://github.com/danny19862025/ArchEasy'
 license=('MIT')
-depends=('gtk4>=4.10' 'glibc' 'gcc-libs' 'pacman' 'curl' 'python')
+depends=('gtk4>=4.10' 'libadwaita' 'glibc' 'gcc-libs' 'pacman' 'curl' 'python')
 makedepends=('git' 'rust' 'pkgconf')
 checkdepends=('lua' 'desktop-file-utils' 'rclone')
 optdepends=('flatpak: Flatpak software sources and permissions'
@@ -52,5 +52,6 @@ package() {
     install -Dm644 assets/archeasy.desktop "$pkgdir/usr/share/applications/archeasy.desktop"
     install -Dm644 assets/archeasy.svg "$pkgdir/usr/share/icons/hicolor/scalable/apps/archeasy.svg"
     install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+    install -Dm644 assets/Octicons-LICENSE "$pkgdir/usr/share/licenses/$pkgname/Octicons-LICENSE"
     install -Dm644 assets/AppCleaner-LICENSE "$pkgdir/usr/share/licenses/$pkgname/AppCleaner-LICENSE"
 }
