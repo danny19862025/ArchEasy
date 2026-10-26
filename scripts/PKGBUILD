@@ -8,7 +8,7 @@ url='https://github.com/danny19862025/ArchEasy'
 license=('MIT')
 depends=('gtk4>=4.10' 'glibc' 'gcc-libs' 'pacman' 'curl' 'python')
 makedepends=('git' 'rust' 'pkgconf')
-checkdepends=('lua' 'desktop-file-utils')
+checkdepends=('lua' 'desktop-file-utils' 'rclone')
 optdepends=('flatpak: Flatpak software sources and permissions'
             'paru: AUR package installation' 'rclone: cloud config backups'
             'konsole: interactive package operations (or another supported terminal)'

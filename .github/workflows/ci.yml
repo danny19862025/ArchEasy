@@ -10,7 +10,7 @@ jobs:
     container: archlinux:base-devel
     steps:
       - name: Install build dependencies
-        run: pacman -Syu --noconfirm --needed git rust gtk4 pkgconf lua python desktop-file-utils
+        run: pacman -Syu --noconfirm --needed git rust gtk4 pkgconf lua python desktop-file-utils rclone
       - uses: actions/checkout@v4
       - name: Fetch locked dependencies
         run: cargo fetch --locked

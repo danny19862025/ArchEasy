@@ -15,7 +15,7 @@ jobs:
     container: archlinux:base-devel
     steps:
       - name: Install build dependencies
-        run: pacman -Syu --noconfirm --needed git rust gtk4 pkgconf github-cli lua python
+        run: pacman -Syu --noconfirm --needed git rust gtk4 pkgconf github-cli lua python rclone
       - uses: actions/checkout@v4
         with:
           ref: ${{ inputs.tag || github.ref }}
