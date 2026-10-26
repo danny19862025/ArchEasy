@@ -39,6 +39,11 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
         run: |
-          gh release create "$RELEASE_TAG" dist/*.tar.gz dist/*.sha256 \
-            --repo "$GITHUB_REPOSITORY" --verify-tag --title "ArchEasy $RELEASE_TAG" \
-            --notes "Linux x86_64 binary built on Arch Linux. Requires GTK4 4.10+ and a supported terminal. Extract the archive, install archeasy on PATH, then run bash scripts/install-desktop.sh for the app launcher."
+          if gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$RELEASE_TAG" dist/*.tar.gz dist/*.sha256 \
+              --repo "$GITHUB_REPOSITORY" --clobber
+          else
+            gh release create "$RELEASE_TAG" dist/*.tar.gz dist/*.sha256 \
+              --repo "$GITHUB_REPOSITORY" --verify-tag --title "ArchEasy $RELEASE_TAG" \
+              --notes "Linux x86_64 binary built on Arch Linux. Requires GTK4 4.10+ and a supported terminal. Extract the archive, install archeasy on PATH, then run bash scripts/install-desktop.sh for the app launcher."
+          fi
