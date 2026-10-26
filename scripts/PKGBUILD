@@ -19,6 +19,7 @@ optdepends=('flatpak: Flatpak software sources and permissions'
             'timeshift: pre-update snapshots' 'snapper: pre-update snapshots')
 provides=('archeasy')
 conflicts=('archeasy')
+options=('!debug') # The release profile already strips debug symbols.
 source=('archeasy::git+https://github.com/danny19862025/ArchEasy.git')
 sha256sums=('SKIP')
 
