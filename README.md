@@ -12,6 +12,10 @@ Configs, with built-in presets and backup controls:
 
 ![ArchEasy Configs tab](assets/screenshots/configs.png)
 
+Installed software, with animated percentage circles by source:
+
+![ArchEasy Installed tab with Pacman, AUR and Flatpak percentage circles](assets/screenshots/installed.png)
+
 ## Install
 
 ### Binary release
@@ -129,7 +133,7 @@ The destination must not exist. Unpacking validates paths, checksums and limits 
 
 Tick **Queue** beside search results, including results from different searches, then **Install queue**. One terminal installs packages in the selected order and stops on failure. Earlier completed installs are kept. Pacman refreshes and upgrades the system with the first official package; subsequent official packages use the refreshed database. AUR packages use paru/yay and retain build review prompts. **Clear queue** clears selections; tick a result again to re-add it.
 
-The **Installed** tab lists all explicitly installed Pacman packages (including AUR packages), supports filtering, and has **Remove** buttons. Removal uses `sudo pacman -R` with the normal confirmation and dependency checks. Refresh after a transaction to update the list.
+The **Installed** tab shows three percentage circles for **Pacman**, **AUR**, and **Flatpak**, with installed counts. The circles pop into view in sequence and fill/count up when the tab opens or you refresh; they respect the desktop’s reduced-motion setting. Percentages use the full list, regardless of the search filter, and round to 100% when entries exist. The list includes explicitly installed native/foreign Pacman packages and user/system Flatpak apps (separate installations count separately; Flatpak runtimes and Pacman dependency-only packages are excluded). AUR includes locally built/foreign packages, which Pacman cannot distinguish from AUR builds. If a source query fails, known entries remain visible and percentages show as unavailable until a successful refresh. Filter by app, package or source. **Remove** opens `sudo pacman -R` or the matching user/system `flatpak uninstall` command with normal confirmation prompts. Refresh after a transaction to update the list.
 
 ## Personal configs
 
@@ -204,6 +208,6 @@ Config workflow references: [GitHub repository contents](https://docs.github.com
 
 MIT licensed; see [LICENSE](LICENSE). Third-party AppCleaner attribution is retained in [assets/AppCleaner-LICENSE](assets/AppCleaner-LICENSE); asset notes are in [assets/README.md](assets/README.md).
 
-[CI](.github/workflows/ci.yml) fetches locked dependencies before running the offline Verify commands in an Arch Linux container. Four graphical Rust tests are intentionally excluded from headless runs.
+[CI](.github/workflows/ci.yml) fetches locked dependencies before running the offline Verify commands in an Arch Linux container. Five graphical Rust tests are intentionally excluded from headless runs.
 
 Maintainers can build a binary archive and SHA-256 file with `bash scripts/package-release.sh` after `cargo fetch --locked`. Pushing a matching version tag (for example `v0.1.0`) runs [the release workflow](.github/workflows/release.yml), verifies the code, and publishes the archive and checksums. The workflow also supports manual dispatch for an existing tag. Presets, scripts, logo and click sound used by the app are embedded in the binary.
