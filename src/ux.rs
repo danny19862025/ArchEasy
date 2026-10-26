@@ -71,6 +71,8 @@ fn empty(entry: &gtk::Entry) -> gtk::Box {
         let picture = gtk::Picture::for_pixbuf(&pixbuf);
         picture.set_size_request(110, 110);
         picture.set_can_shrink(true);
+        picture.set_vexpand(false);
+        picture.set_valign(gtk::Align::Center);
         picture.set_halign(gtk::Align::Center);
         body.append(&picture);
     }
