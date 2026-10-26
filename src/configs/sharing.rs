@@ -324,6 +324,12 @@ pub(super) fn add_custom_cards(
     for plan in load_presets(&presets_dir()) {
         let card = gtk::Box::new(gtk::Orientation::Vertical, 8);
         card.add_css_class("card");
+        card.append(&workflow::dry_run_button(
+            parent,
+            plan.clone(),
+            status,
+            refresh,
+        ));
         card.append(&super::super::label(
             &format!("{} · Imported preset", plan.name),
             "name",

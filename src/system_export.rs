@@ -139,7 +139,7 @@ pub fn save(path: &Path, contents: &str) -> Result<(), String> {
 }
 #[allow(deprecated)]
 pub fn button(page: &gtk::Box, parent: &gtk::ApplicationWindow) {
-    let export = gtk::Button::with_label("Export my system · my-system.sh…");
+    let export = gtk::Button::with_label("Export my system · setup-my-pc.sh…");
     export.set_widget_name("export-my-system");
     export.set_halign(gtk::Align::Start);
     page.append(&export);
@@ -153,7 +153,7 @@ pub fn button(page: &gtk::Box, parent: &gtk::ApplicationWindow) {
         let status = label("Bundled configs make the script portable even without a published Gist.", "subtitle"); status.set_wrap(true); body.append(&status);
         dialog.add_button("Close", gtk::ResponseType::Close); dialog.add_button("Generate & save script…", gtk::ResponseType::Accept);
         let weak = parent.downgrade(); dialog.connect_response(move |dialog, response| { if response != gtk::ResponseType::Accept { dialog.close(); return; } let Some(parent) = weak.upgrade() else { return; }; let link = gist.text().trim().to_owned(); let weak = parent.downgrade(); let status_done = status.clone();
-            system_tools::task(&status, move || inventory(&link), move |script| { let Some(parent) = weak.upgrade() else { return; }; let status = status_done.clone(); gtk::FileDialog::builder().title("Save system restore script").initial_name("my-system.sh").build().save(Some(&parent), gtk::gio::Cancellable::NONE, move |result| { if let Ok(file) = result && let Some(path) = file.path() { match save(&path, &script) { Ok(()) => status.set_text(&format!("Saved {}. Review it before running on the new machine.", path.display())), Err(e) => status.set_text(&e) } } }); });
+            system_tools::task(&status, move || inventory(&link), move |script| { let Some(parent) = weak.upgrade() else { return; }; let status = status_done.clone(); gtk::FileDialog::builder().title("Save system restore script").initial_name("setup-my-pc.sh").build().save(Some(&parent), gtk::gio::Cancellable::NONE, move |result| { if let Ok(file) = result && let Some(path) = file.path() { match save(&path, &script) { Ok(()) => status.set_text(&format!("Saved {}. Review it before running on the new machine.", path.display())), Err(e) => status.set_text(&e) } } }); });
         }); dialog.present();
     });
 }

@@ -65,6 +65,9 @@ fn empty(entry: &gtk::Entry) -> gtk::Box {
     if let Ok(pixbuf) =
         gtk::gdk_pixbuf::Pixbuf::from_stream(&stream, None::<&gtk::gio::Cancellable>)
     {
+        let pixbuf = pixbuf
+            .scale_simple(110, 110, gtk::gdk_pixbuf::InterpType::Bilinear)
+            .unwrap_or(pixbuf);
         let picture = gtk::Picture::for_pixbuf(&pixbuf);
         picture.set_size_request(110, 110);
         picture.set_can_shrink(true);
@@ -125,6 +128,17 @@ pub fn software(page: &gtk::Box, window: &gtk::ApplicationWindow, tabs: &gtk::St
     entry.set_widget_name("software-search");
     entry.set_primary_icon_name(Some("system-search-symbolic"));
     page.append(&entry);
+    let history = gtk::FlowBox::new();
+    history.set_widget_name("search-history");
+    history.set_selection_mode(gtk::SelectionMode::None);
+    history.set_homogeneous(false);
+    history.set_halign(gtk::Align::Start);
+    history.set_column_spacing(6);
+    history.set_row_spacing(6);
+    history.set_max_children_per_line(5);
+    history.set_min_children_per_line(1);
+    search_history::refresh(&history, &entry);
+    page.append(&history);
     let filters = gtk::Box::new(gtk::Orientation::Horizontal, 8);
     let selected = Rc::new(Cell::new(0usize));
     let generation = Rc::new(Cell::new(0u64));
@@ -217,6 +231,7 @@ pub fn software(page: &gtk::Box, window: &gtk::ApplicationWindow, tabs: &gtk::St
         drop(tx);
         let mut total = 0usize; let mut shown = 0usize; let mut failures = Vec::new();
         let l = l.clone(); let s = s.clone(); let g = g.clone(); let queue = queue.clone(); let queue_run = queue_run.clone(); let actions = actions.clone();
+        let history = history.clone(); let entry = e.clone();
         glib::timeout_add_local(Duration::from_millis(50), move || {
             if id != g.get() { return glib::ControlFlow::Break; }
             let (packages, errors, sizes) = match rx.try_recv() { Ok(v) => v, Err(mpsc::TryRecvError::Empty) => return glib::ControlFlow::Continue, Err(_) => { s.set_text("Search stopped. Try again."); return glib::ControlFlow::Break; } };
@@ -237,7 +252,7 @@ pub fn software(page: &gtk::Box, window: &gtk::ApplicationWindow, tabs: &gtk::St
                 let status = s.clone(); button.connect_clicked(move |button| match install(&p) { Ok(()) => { button.set_sensitive(false); button.set_label("Check terminal"); toast(&format!("{} installation opened in terminal", p.name)); status.set_text("Review package and password prompts in your terminal. Search again when finished."); }, Err(e) => { status.set_text(&e); show_error(&e); } });
                 row.add_suffix(&button); actions.borrow_mut().push(button); l.append(&row);
             }
-            if remaining == 0 { glib::ControlFlow::Break } else { glib::ControlFlow::Continue }
+            if remaining == 0 { search_history::record(&query, &history, &entry); glib::ControlFlow::Break } else { glib::ControlFlow::Continue }
         });
     });
     let pending: Rc<RefCell<Option<glib::SourceId>>> = Rc::new(RefCell::new(None));

@@ -5,11 +5,14 @@ mod cloud;
 mod configs;
 mod custom_theme;
 mod flatpak_permissions;
+mod maintenance;
+mod search_history;
 mod snapshots;
 mod store;
 mod system_export;
 mod system_tools;
 mod task_search;
+mod updates;
 mod ux;
 
 use adw::prelude::*;
@@ -357,6 +360,9 @@ fn main() -> glib::ExitCode {
             glib::ExitCode::FAILURE
         };
     }
+    if let Err(error) = appearance::load_brand_font() {
+        eprintln!("ArchEasy wordmark font: {error}");
+    }
     adw::init().expect("Libadwaita initialization");
     let app = gtk::Application::builder()
         .application_id("io.github.archeasy.ArchEasy")
@@ -371,6 +377,13 @@ window.archeasy { background: @theme_bg_color; color: @theme_fg_color; }
 .archeasy .about-close { font-size: 22px; min-width: 24px; padding: 2px 10px; }
 .archeasy row:selected label { color: inherit; }
 .archeasy .title { font-size: 32px; font-weight: 800; }
+.archeasy .brand-wordmark {
+    font-family: "Ribeye", serif;
+    font-size: 36px;
+    font-weight: 400;
+    letter-spacing: 0;
+    opacity: 0.9;
+}
 .archeasy .subtitle { opacity: 0.8; }
 .archeasy .card { background: alpha(@theme_fg_color, 0.06); border-radius: 14px; padding: 18px; }
 .archeasy .name { font-weight: 700; font-size: 17px; }
@@ -398,6 +411,11 @@ window.archeasy { background: @theme_bg_color; color: @theme_fg_color; }
 .archeasy button:focus-visible { outline: 2px solid alpha(#1793d1, 0.85); outline-offset: 3px; }
 .archeasy button:checked { border-color: alpha(#1793d1, 0.65); background-image: linear-gradient(to bottom, alpha(#1793d1, 0.22), alpha(#1793d1, 0.08)); }
 .archeasy button:disabled { background-image: none; box-shadow: none; }
+.archeasy .main-navigation > button { border-radius: 12px; }
+.archeasy .main-navigation > button:not(:last-child) { margin-right: 8px; }
+.archeasy dropdown { border-radius: 12px; }
+.archeasy dropdown > button { padding: 9px 12px; }
+.archeasy dropdown label { color: inherit; }
 .archeasy .card { border: 1px solid alpha(@theme_fg_color, 0.08); }
 .archeasy .suggested-action:hover { box-shadow: 0 0 20px 2px alpha(#55cbb6, 0.45); }
 .archeasy entry { padding: 10px; border-radius: 10px; }
@@ -507,9 +525,10 @@ fn build_ui(app: &gtk::Application) {
     root.set_margin_start(30);
     root.set_margin_end(30);
     let top = gtk::Box::new(gtk::Orientation::Horizontal, 12);
-    let title = label("ArchEasy", "title");
-    title.set_hexpand(true);
-    top.append(&title);
+    top.set_halign(gtk::Align::End);
+    let title = label("ArchEasy", "brand-wordmark");
+    title.set_halign(gtk::Align::Start);
+    title.set_width_chars(9);
     let update = gtk::Button::with_label("System update");
     update.add_css_class("suggested-action");
     update.set_valign(gtk::Align::Center);
@@ -536,6 +555,7 @@ fn build_ui(app: &gtk::Application) {
     top.append(&label("Theme", "subtitle"));
     let theme = gtk::DropDown::from_strings(&["System", "Light", "Dark", "Custom"]);
     theme.set_widget_name("archeasy-theme");
+    theme.set_size_request(120, -1);
     theme.set_selected(selected);
     theme.set_valign(gtk::Align::Center);
     theme.set_tooltip_text(Some(
@@ -667,12 +687,15 @@ fn build_ui(app: &gtk::Application) {
         .stack(&stack)
         .halign(gtk::Align::Start)
         .build();
+    navigation.remove_css_class("linked");
+    navigation.add_css_class("main-navigation");
     root.append(&navigation);
     root.append(&stack);
+    root.append(&title);
     ux::software(&software, &win, &stack);
 
     let background = appearance::background(&root);
-    appearance::opening_animation(&background);
+    appearance::opening_animation(&background, &title);
     let toasts = adw::ToastOverlay::new();
     toasts.set_child(Some(&background));
     win.set_child(Some(&toasts));

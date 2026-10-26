@@ -14,6 +14,8 @@ mkdir -p "$stage/$name/assets" "$stage/$name/scripts"
 install -m755 target/release/archeasy "$stage/$name/archeasy"
 install -m644 LICENSE README.md "$stage/$name/"
 install -m644 assets/archeasy.desktop assets/archeasy.svg assets/AppCleaner-LICENSE assets/Octicons-LICENSE "$stage/$name/assets/"
+mkdir -p "$stage/$name/assets/fonts"
+install -m644 assets/fonts/Ribeye-Regular.ttf assets/fonts/Ribeye-OFL.txt "$stage/$name/assets/fonts/"
 install -m755 scripts/install-desktop.sh "$stage/$name/scripts/"
 tar -C "$stage" -czf "dist/$name.tar.gz" "$name"
 (cd dist && sha256sum "$name.tar.gz" > "$name.tar.gz.sha256")

@@ -15,6 +15,43 @@ impl Drop for Temp {
     }
 }
 #[test]
+fn failed_fish_syntax_or_startup_restores_entire_transaction() {
+    for bad_fish in ["if true\n", "__archeasy_missing_startup_command__\n"] {
+        let temp = Temp::new();
+        let root = temp.0.join("config");
+        let backups = temp.0.join("backups");
+        fs::create_dir_all(root.join("fish")).unwrap();
+        let original = root.join("fish/config.fish");
+        fs::write(&original, "# original config\n").unwrap();
+        fs::set_permissions(&original, fs::Permissions::from_mode(0o640)).unwrap();
+        let mut plan = Plan::builtin(PRESETS.iter().find(|p| p.id == "fish").unwrap());
+        plan.files[0].1 = bad_fish.as_bytes().to_vec();
+        let error = apply_plan(&plan, &root, &backups).unwrap_err();
+        assert!(
+            error.contains("Previous configs automatically restored"),
+            "{error}"
+        );
+        assert_eq!(
+            fs::read_to_string(&original).unwrap(),
+            "# original config\n"
+        );
+        assert_eq!(
+            fs::metadata(&original).unwrap().permissions().mode() & 0o777,
+            0o640
+        );
+        assert!(!root.join("fish/functions/fish_prompt.fish").exists());
+        let backup = fs::read_dir(backups.join("fish"))
+            .unwrap()
+            .filter_map(Result::ok)
+            .map(|e| e.path())
+            .find(|p| p.join("manifest.json").is_file())
+            .unwrap();
+        assert!(backup.with_extension("zip").is_file());
+        assert!(backup.join("restored").is_file());
+        assert!(!backup.join("applied-version.json").exists());
+    }
+}
+#[test]
 fn stack_backs_up_everything_before_writes_and_restores_all_files() {
     let temp = Temp::new();
     let root = temp.0.join("config");
@@ -293,6 +330,27 @@ fn configs_workflow_ui() {
         .render_texture(&node, None)
         .save_to_png("/tmp/archeasy-configs.png")
         .unwrap();
+    descendants(window.upcast_ref())
+        .into_iter()
+        .find(|w| w.widget_name() == "dry-run-fish")
+        .unwrap()
+        .downcast::<gtk::Button>()
+        .unwrap()
+        .emit_clicked();
+    let dry_run = gtk::Window::list_toplevels()
+        .into_iter()
+        .find(|w| w.widget_name() == "config-diff-dialog" && w.is_visible())
+        .unwrap()
+        .downcast::<gtk::Dialog>()
+        .unwrap();
+    assert!(
+        dry_run
+            .widget_for_response(gtk::ResponseType::Accept)
+            .is_none()
+    );
+    dry_run.response(gtk::ResponseType::Cancel);
+    assert!(!glib::user_config_dir().join("fish").exists());
+    assert!(!backups_dir().exists());
     let apply = descendants(window.upcast_ref())
         .into_iter()
         .find(|w| w.widget_name() == "apply-terminal-stack")
@@ -362,6 +420,7 @@ fn configs_workflow_ui() {
         .downcast::<gtk::Dialog>()
         .unwrap();
     dialog.response(gtk::ResponseType::Accept);
+    wait_until(|| !dialog.is_visible());
     assert!(latest_backup(&imported.id, &backups_dir()).is_some());
     sharing::export_dialog(&window, imported);
     let export = gtk::Window::list_toplevels()
@@ -609,20 +668,20 @@ fn git_versions_preserve_unrelated_staged_files_and_skip_staged_config_paths() {
     assert!(!git(&["show", "--format=", "--name-only", "HEAD"]).contains("unrelated"));
     fs::write(root.join("fish/config.fish"), "staged config\n").unwrap();
     git(&["add", "--", "fish/config.fish"]);
-    plan.files[0].1 = b"new working tree config\n".to_vec();
+    plan.files[0].1 = b"# new working tree config\n".to_vec();
     let second = apply_plan(&plan, &root, &backups).unwrap();
     assert!(history::message(&second).contains("staged changes"));
     assert_eq!(git(&["show", ":fish/config.fish"]), "staged config");
     assert_eq!(history::versions(&backups).len(), 2);
     let old = history::versions(&backups)
         .into_iter()
-        .find(|(_, p, _)| p.files[0].1 != b"new working tree config\n")
+        .find(|(_, p, _)| p.files[0].1 != b"# new working tree config\n")
         .unwrap()
         .1;
     apply_plan(&old, &root, &backups).unwrap();
     assert_ne!(
         fs::read(root.join("fish/config.fish")).unwrap(),
-        b"new working tree config\n"
+        b"# new working tree config\n"
     );
 }
 #[test]

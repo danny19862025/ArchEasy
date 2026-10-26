@@ -1,6 +1,6 @@
 [package]
 name = "archeasy"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2024"
 description = "A beginner-friendly Arch Linux software browser"
 license = "MIT"

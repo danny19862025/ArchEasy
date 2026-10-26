@@ -1,15 +1,17 @@
 # Maintainer: Danny Rudd <danny.rudd@icloud.com>
 pkgname=archeasy-git
-pkgver=0.1.0.r0.g0000000
+pkgver=0.1.1.r0.g0000000
 pkgrel=1
 pkgdesc='A beginner-friendly Arch Linux software browser and config manager'
 arch=('x86_64' 'aarch64')
 url='https://github.com/danny19862025/ArchEasy'
-license=('MIT')
-depends=('gtk4>=4.10' 'libadwaita' 'glibc' 'gcc-libs' 'pacman' 'curl' 'python')
+license=('MIT' 'OFL-1.1')
+depends=('gtk4>=4.10' 'libadwaita' 'fontconfig' 'glibc' 'gcc-libs' 'pacman' 'curl' 'python')
 makedepends=('git' 'rust' 'pkgconf')
-checkdepends=('lua' 'desktop-file-utils' 'rclone')
+checkdepends=('lua' 'desktop-file-utils' 'rclone' 'fish')
 optdepends=('flatpak: Flatpak software sources and permissions'
+            'fish: validate and run Fish presets after applying'
+            'pacman-contrib: clean old cached packages while keeping three versions'
             'paru: AUR package installation' 'rclone: cloud config backups'
             'konsole: interactive package operations (or another supported terminal)'
             'pipewire: click sound playback with pw-play'
@@ -41,6 +43,7 @@ check() {
     cargo test --frozen
     python tests/setup_store_smoke.py
     python tests/snapshot_smoke.py
+    python tests/maintenance_smoke.py
     luac -p presets/hypr/hyprland.lua
     lua tests/validate-hyprland.lua presets/hypr/hyprland.lua
     desktop-file-validate assets/archeasy.desktop
@@ -54,4 +57,5 @@ package() {
     install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
     install -Dm644 assets/Octicons-LICENSE "$pkgdir/usr/share/licenses/$pkgname/Octicons-LICENSE"
     install -Dm644 assets/AppCleaner-LICENSE "$pkgdir/usr/share/licenses/$pkgname/AppCleaner-LICENSE"
+    install -Dm644 assets/fonts/Ribeye-OFL.txt "$pkgdir/usr/share/licenses/$pkgname/Ribeye-OFL.txt"
 }

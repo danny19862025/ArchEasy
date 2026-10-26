@@ -1,5 +1,7 @@
 # Visual and sound assets
 
+- `fonts/Ribeye-Regular.ttf`: Ribeye by Brian J. Bonislawsky (Astigmatic), downloaded from [Google Fonts](https://github.com/google/fonts/tree/main/ofl/ribeye). Distributed unmodified under the SIL Open Font License 1.1 in `fonts/Ribeye-OFL.txt`. Embedded in the binary and registered privately with Fontconfig for the animated bottom-left wordmark; users do not need to download or install a font.
+
 - `archlinux-logo.svg`: Arch Linux vector logo, copied from the installed `/usr/share/pixmaps/archlinux-logo.svg`. Embedded in the Rust app and displayed as a low-opacity background watermark.
 - `click.wav`: original 45 ms synthesized two-tone click with a short decay, generated for ArchEasy. Embedded in the binary and cached for local sound playback.
 

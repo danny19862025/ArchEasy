@@ -252,7 +252,7 @@ fn safe_parent(root: &Path, relative: &str) -> Result<PathBuf, String> {
     }
     Ok(root.join(relative))
 }
-fn write_atomic(path: &Path, bytes: &[u8], mode: u32) -> Result<(), String> {
+pub(crate) fn write_atomic(path: &Path, bytes: &[u8], mode: u32) -> Result<(), String> {
     let temporary = path.with_file_name(format!(".archeasy-{}", stamp()));
     let result = (|| {
         let mut file = fs::OpenOptions::new()
@@ -367,10 +367,60 @@ fn apply_saved(plan: &workflow::Plan, root: &Path, backup: &Path) -> Result<(), 
             ));
         }
     }
+    if let Err(error) = validate_fish(plan, root) {
+        let rollback = restore_snapshot(backup, root);
+        return Err(format!(
+            "Fish validation failed: {error}. {}. Backup: {}",
+            match rollback {
+                Ok(()) => "Previous configs automatically restored".into(),
+                Err(e) => format!("Automatic restore failed: {e}; keep this backup"),
+            },
+            backup.display()
+        ));
+    }
     if let Err(error) = history::record(plan, root, backup) {
         eprintln!("Config version history: {error}");
     }
     Ok(())
+}
+fn validate_fish(plan: &workflow::Plan, root: &Path) -> Result<(), String> {
+    let files: Vec<_> = plan
+        .files
+        .iter()
+        .filter(|(name, _)| name.starts_with("fish/") && name.ends_with(".fish"))
+        .map(|(name, _)| root.join(name))
+        .collect();
+    if files.is_empty() {
+        return Ok(());
+    }
+    // Syntax-check all changed Fish scripts, including interactive-only blocks.
+    let check = |args: Vec<std::ffi::OsString>| -> Result<(), String> {
+        let out = std::process::Command::new("timeout")
+            .args(["--kill-after=2", "10", "fish"])
+            .args(args)
+            .env("XDG_CONFIG_HOME", root)
+            .stdin(std::process::Stdio::null())
+            .output()
+            .map_err(|e| e.to_string())?;
+        if out.status.success() && out.stderr.is_empty() {
+            Ok(())
+        } else {
+            Err(format!(
+                "{} {}",
+                out.status,
+                String::from_utf8_lossy(&out.stderr).trim()
+            ))
+        }
+    };
+    // Fish accepts one script after --no-execute, so check each file separately.
+    for file in files {
+        check(vec![
+            "--no-config".into(),
+            "--no-execute".into(),
+            file.into_os_string(),
+        ])?;
+    }
+    check(vec!["-c".into(), "echo ok".into()])
 }
 fn restore_snapshot(backup: &Path, root: &Path) -> Result<(), String> {
     let manifest: serde_json::Value =
@@ -581,6 +631,12 @@ pub fn page(parent: &gtk::ApplicationWindow) -> gtk::Box {
         }
     });
     stack_actions.append(&stack_apply);
+    stack_actions.append(&workflow::dry_run_button(
+        parent,
+        workflow::Plan::stack(),
+        &status,
+        &refresh,
+    ));
     let stack_restore = gtk::Button::with_label("Restore stack backup");
     let weak = parent.downgrade();
     let s = status.clone();
@@ -689,6 +745,10 @@ pub fn page(parent: &gtk::ApplicationWindow) -> gtk::Box {
             }
         });
         actions.insert(&apply_button, -1);
+        actions.insert(
+            &workflow::dry_run_button(parent, workflow::Plan::builtin(preset), &status, &refresh),
+            -1,
+        );
         let show = gtk::Button::with_label(if preset.id == "hyprland" {
             "Setup guide"
         } else {
@@ -789,6 +849,9 @@ pub fn cli_apply(path: &Path) -> glib::ExitCode {
             glib::ExitCode::SUCCESS
         }
         Err(error) => {
+            if let Some(directory) = path.parent() {
+                let _ = write_atomic(&directory.join("apply-error.txt"), error.as_bytes(), 0o600);
+            }
             eprintln!("Config apply failed: {error}");
             glib::ExitCode::FAILURE
         }

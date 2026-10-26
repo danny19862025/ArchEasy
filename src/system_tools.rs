@@ -313,6 +313,7 @@ pub fn page(parent: &gtk::ApplicationWindow) -> gtk::Box {
         "Arch NVIDIA driver guide ↗",
     ));
     system_export::button(&page, parent);
+    maintenance::add_controls(&page, parent);
     snapshots::button(&page, parent);
     page
 }

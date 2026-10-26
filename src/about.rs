@@ -71,6 +71,7 @@ pub fn window(
         content.append(&gtk::Label::new(Some("github.com/danny19862025")));
         profile.set_child(Some(&content));
         body.append(&profile);
+        crate::updates::add_controls(&body);
     }
     let description = gtk::Label::new(Some(comments));
     description.set_wrap(true);

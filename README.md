@@ -185,7 +185,17 @@ The **Permissions** tab lists user and system Flatpaks. Choose an app, select **
 
 Task-based search uses the local `data/search-keywords.json` mapping. For example, “video editor like Premiere” searches Kdenlive, Shotcut and DaVinci Resolve across the selected package sources. It uses no AI service and sends only mapped search terms to the normal package search sources.
 
-**Export my system · my-system.sh…** in **System** saves a private executable script containing explicit official packages, explicit foreign/AUR packages, user/system Flatpak apps and HTTPS remotes, plus the current files known to ArchEasy's config history. You can publish the applied configs through the existing review dialog and include the resulting Gist URL. Configs are also bundled directly, so the script does not depend on a live Gist. Review the exported file for private config contents. Running it prompts before installation, bootstraps a reviewed paru build if needed, and backs up destination configs before restoring; linked destinations require manual review. This reproduces package/config selections using current repositories, not exact versions, disks, personal files, boot settings or external credentials. Foreign packages unavailable in the AUR need their original installation source.
+**Export my system · setup-my-pc.sh…** in **System** saves a private executable script containing explicit official packages, explicit foreign/AUR packages, user/system Flatpak apps and HTTPS remotes, plus the current files known to ArchEasy's config history. You can publish the applied configs through the existing review dialog and include the resulting Gist URL. Configs are also bundled directly, so the script does not depend on a live Gist. Review the exported file for private config contents. Running it prompts before installation, bootstraps a reviewed paru build if needed, and backs up destination configs before restoring; linked destinations require manual review. This reproduces package/config selections using current repositories, not exact versions, disks, personal files, boot settings or external credentials. Foreign packages unavailable in the AUR need their original installation source.
+
+## Config safety and everyday tools
+
+- **Show what will change** opens a read-only dry run for built-in and imported presets, including Full Setup. It creates no backups or config files and offers no Apply action. **Config timeline…** lists dated versions and previews the diff before restoring.
+- Applies touching Fish scripts syntax-check each changed `.fish` file and run `fish -c "echo ok"` with the updated config in a background task. Each check times out after ten seconds. Failure automatically restores the whole transaction, including original file modes and symlinks, reports the backup location and shows a toast. Fish must be installed to validate Fish presets; Install & Apply can install it first. Other config commands and arbitrary startup side effects are outside the file rollback.
+- **About** shows the Cargo version, project GitHub link and **Check for updates**. The check requests the latest stable GitHub release only when clicked and opens download links without installing updates.
+- The last five completed searches are saved privately and appear as reusable chips below the search bar. Repeated searches move to the front.
+- The gear beside **Sound on / Muted** opens a saved 0–100% click-volume slider, including preview. Muting and zero volume stay silent.
+- **System → Find orphans** inspects `pacman -Qdt`. Select packages and review removal in the terminal; orphan status is rechecked immediately before `sudo pacman -Rs`, which asks for final transaction confirmation and retains Pacman's normal config-backup behaviour.
+- **Clean Pacman cache…** shows `/var/cache/pacman/pkg` size and uses `paccache --remove --keep 3` after confirmation, retaining the newest three cached versions of each package. Requires `pacman-contrib`; use Refresh after cleaning.
 
 References: [Timeshift commands](https://man.archlinux.org/man/timeshift.1.en), [Snapper snapshots](https://man.archlinux.org/man/snapper.8.en), [Flatpak overrides](https://docs.flatpak.org/en/latest/flatpak-command-reference.html#flatpak-override), [NVIDIA driver selection](https://wiki.archlinux.org/title/NVIDIA), [Catppuccin Kitty themes](https://github.com/catppuccin/kitty).
 
@@ -206,7 +216,7 @@ Config workflow references: [GitHub repository contents](https://docs.github.com
 
 ## Releases and license
 
-MIT licensed; see [LICENSE](LICENSE). Third-party AppCleaner attribution is retained in [assets/AppCleaner-LICENSE](assets/AppCleaner-LICENSE); asset notes are in [assets/README.md](assets/README.md).
+MIT licensed; see [LICENSE](LICENSE). The bundled Ribeye wordmark font uses the [SIL Open Font License 1.1](assets/fonts/Ribeye-OFL.txt). It is embedded and loaded automatically, including from standalone binaries; no separate font download or system installation is required. Third-party AppCleaner attribution is retained in [assets/AppCleaner-LICENSE](assets/AppCleaner-LICENSE); asset notes are in [assets/README.md](assets/README.md).
 
 [CI](.github/workflows/ci.yml) fetches locked dependencies before running the offline Verify commands in an Arch Linux container. Six graphical Rust tests are intentionally excluded from headless runs.
 

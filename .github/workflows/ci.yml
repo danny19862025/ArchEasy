@@ -10,7 +10,7 @@ jobs:
     container: archlinux:base-devel
     steps:
       - name: Install build dependencies
-        run: pacman -Syu --noconfirm --needed git rust gtk4 libadwaita pkgconf lua python desktop-file-utils rclone
+        run: pacman -Syu --noconfirm --needed git rust gtk4 libadwaita fontconfig pkgconf lua python desktop-file-utils rclone fish
       - uses: actions/checkout@v4
       - name: Fetch locked dependencies
         run: cargo fetch --locked
@@ -23,6 +23,7 @@ jobs:
           # Setup intentionally refuses root; exercise it as a normal user.
           runuser -u nobody -- python tests/setup_store_smoke.py
           runuser -u nobody -- python tests/snapshot_smoke.py
+          runuser -u nobody -- python tests/maintenance_smoke.py
       - name: Lua and desktop validation
         run: |
           luac -p presets/hypr/hyprland.lua

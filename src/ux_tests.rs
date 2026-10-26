@@ -150,6 +150,82 @@ fn native_search_and_guided_flows() {
     pump(Duration::from_millis(2100));
     let win = app.active_window().unwrap();
     let widgets = descendants(&win);
+    let sound_settings = widgets
+        .iter()
+        .find(|w| w.widget_name() == "sound-settings")
+        .unwrap()
+        .clone()
+        .downcast::<gtk::MenuButton>()
+        .unwrap();
+    sound_settings.popup();
+    pump(Duration::from_millis(100));
+    let volume = descendants(&win)
+        .into_iter()
+        .find(|w| w.widget_name() == "sound-volume")
+        .unwrap()
+        .downcast::<gtk::Scale>()
+        .unwrap();
+    volume.set_value(42.0);
+    assert_eq!(
+        std::fs::read_to_string(glib::user_config_dir().join("archeasy/sound-volume")).unwrap(),
+        "42"
+    );
+    sound_settings.popdown();
+    let history = widgets
+        .iter()
+        .find(|w| w.widget_name() == "search-history")
+        .unwrap();
+    assert!(descendants(history).iter().any(|w| w.is::<gtk::Button>()));
+    let about = widgets
+        .iter()
+        .find(|w| w.widget_name() == "archeasy-about")
+        .unwrap()
+        .clone()
+        .downcast::<gtk::Button>()
+        .unwrap();
+    about.emit_clicked();
+    pump(Duration::from_millis(100));
+    let about_window = gtk::Window::list_toplevels()
+        .into_iter()
+        .find(|w| w.widget_name() == "archeasy-about-window" && w.is_visible())
+        .unwrap();
+    descendants(&about_window)
+        .into_iter()
+        .find(|w| w.widget_name() == "check-app-updates")
+        .unwrap()
+        .downcast::<gtk::Button>()
+        .unwrap()
+        .emit_clicked();
+    pump(Duration::from_millis(300));
+    assert!(
+        descendants(&about_window)
+            .into_iter()
+            .filter_map(|w| w.downcast::<gtk::Label>().ok())
+            .any(|l| l.widget_name() == "app-update-status"
+                && l.text().contains("v9.0.0 is available"))
+    );
+    about_window.downcast::<gtk::Window>().unwrap().close();
+    widgets
+        .iter()
+        .find(|w| w.widget_name() == "find-orphans")
+        .unwrap()
+        .clone()
+        .downcast::<gtk::Button>()
+        .unwrap()
+        .emit_clicked();
+    pump(Duration::from_millis(300));
+    let orphans = gtk::Window::list_toplevels()
+        .into_iter()
+        .find(|w| w.widget_name() == "orphan-cleaner-window")
+        .unwrap();
+    assert!(
+        !descendants(&orphans)
+            .iter()
+            .find(|w| w.widget_name() == "remove-selected-orphans")
+            .unwrap()
+            .is_sensitive()
+    );
+    orphans.downcast::<gtk::Window>().unwrap().close();
     let theme = widgets
         .iter()
         .filter(|w| w.widget_name() == "archeasy-theme")
@@ -191,7 +267,13 @@ fn native_search_and_guided_flows() {
         "Preview must not write configs"
     );
     diff.close();
+    theme.set_selected(0);
     pump(Duration::from_millis(100));
+    assert!(!win.has_css_class("light"));
+    assert_eq!(
+        win.has_css_class("dark"),
+        adw::StyleManager::default().is_dark()
+    );
     if let Ok(path) = std::env::var("ARCHEASY_UI_SCREENSHOT") {
         let paintable = gtk::WidgetPaintable::new(Some(&win));
         let snapshot = gtk::Snapshot::new();

@@ -326,6 +326,28 @@ fn diff_view(text: &str, lines: &[usize], color: &str) -> gtk::ScrolledWindow {
 pub(super) enum Mode {
     Direct,
     Setup,
+    DryRun,
+}
+pub(super) fn dry_run_button(
+    parent: &gtk::ApplicationWindow,
+    plan: Plan,
+    status: &gtk::Label,
+    refresh: &gtk::Button,
+) -> gtk::Button {
+    let button = gtk::Button::with_label("Show what will change");
+    button.set_widget_name(&format!("dry-run-{}", plan.id));
+    button.set_tooltip_text(Some(
+        "Dry run: preview the diff without writing files or installing packages",
+    ));
+    let weak = parent.downgrade();
+    let status = status.clone();
+    let refresh = refresh.clone();
+    button.connect_clicked(move |_| {
+        if let Some(parent) = weak.upgrade() {
+            review_dialog(&parent, plan.clone(), Mode::DryRun, &status, &refresh, None);
+        }
+    });
+    button
 }
 pub(super) fn review_dialog(
     parent: &gtk::ApplicationWindow,
@@ -370,8 +392,10 @@ pub(super) fn review_dialog(
     dialog.set_widget_name("config-diff-dialog");
     #[allow(deprecated)]
     {
-        dialog.add_button("Cancel", gtk::ResponseType::Cancel);
-        dialog.add_button("Apply reviewed changes", gtk::ResponseType::Accept);
+        dialog.add_button("Close", gtk::ResponseType::Cancel);
+        if !matches!(mode, Mode::DryRun) {
+            dialog.add_button("Apply reviewed changes", gtk::ResponseType::Accept);
+        }
         dialog.set_default_response(gtk::ResponseType::Cancel);
     }
     let body = dialog.content_area();
@@ -412,6 +436,13 @@ pub(super) fn review_dialog(
         .vexpand(true)
         .build();
     body.append(&diff);
+    if matches!(mode, Mode::DryRun) {
+        dialog.set_title(Some(&format!("Dry run · {}", plan.name)));
+        note.set_text("Dry run — no files, backups, packages or login-shell settings will be changed. Current files are on the left; proposed files are on the right.");
+        dialog.connect_response(|dialog, _| dialog.close());
+        dialog.present();
+        return;
+    }
     let install = gtk::CheckButton::with_label(
         "Install missing dependencies first (Pacman may update the system)",
     );
@@ -447,25 +478,53 @@ pub(super) fn review_dialog(
                     Err(e) => notice(&parent, "Could not start setup", &e),
                 }
             } else {
-                match apply_reviewed(&plan, &before, &glib::user_config_dir(), &backups_dir()) {
-                    Ok(backup) => {
-                        status.set_text(&format!(
-                            "Applied {}. Backup: {}. {}",
-                            plan.name,
-                            backup.display(),
-                            history::message(&backup)
-                        ));
-                        applied_toast(&plan, backup.clone(), &status, &refresh);
-                        dialog.close();
-                        refresh.emit_clicked();
-                        if let Some(preset) = preview
-                            && let Err(e) = show_result(preset, &parent)
-                        {
-                            notice(&parent, "Config applied — preview unavailable", &e);
+                dialog.set_sensitive(false);
+                status.set_text("Applying reviewed configs and checking Fish in the background…");
+                let plan_work = plan.clone();
+                let before_work = before.clone();
+                let plan = plan.clone();
+                let status = status.clone();
+                let refresh = refresh.clone();
+                let dialog = dialog.clone();
+                let parent = parent.clone();
+                let status_work = status.clone();
+                crate::system_tools::task(
+                    &status_work,
+                    move || {
+                        Ok(apply_reviewed(
+                            &plan_work,
+                            &before_work,
+                            &glib::user_config_dir(),
+                            &backups_dir(),
+                        ))
+                    },
+                    move |result| match result {
+                        Ok(backup) => {
+                            status.set_text(&format!(
+                                "Applied {}. Backup: {}. {}",
+                                plan.name,
+                                backup.display(),
+                                history::message(&backup)
+                            ));
+                            applied_toast(&plan, backup.clone(), &status, &refresh);
+                            dialog.close();
+                            refresh.emit_clicked();
+                            if let Some(preset) = preview
+                                && let Err(e) = show_result(preset, &parent)
+                            {
+                                notice(&parent, "Config applied — preview unavailable", &e);
+                            }
                         }
-                    }
-                    Err(e) => notice(&parent, "Could not apply reviewed configs", &e),
-                }
+                        Err(e) => {
+                            dialog.set_sensitive(true);
+                            status.set_text(&e);
+                            crate::ux::toast(
+                                "Config apply failed; review the validation and restore result",
+                            );
+                            notice(&parent, "Could not apply reviewed configs", &e);
+                        }
+                    },
+                );
             }
         }
     });
@@ -520,6 +579,16 @@ pub(super) fn start_setup(
             return glib::ControlFlow::Break;
         };
         if let Ok(done) = fs::read_to_string(directory.join("job.json.done")) {
+            if done.trim() != "0"
+                && let Ok(error) = fs::read_to_string(directory.join("apply-error.txt"))
+            {
+                status.set_text(&error);
+                crate::ux::toast("Fish validation failed; review the automatic restore result");
+                if let Some(refresh) = weak_refresh.upgrade() {
+                    refresh.emit_clicked();
+                }
+                return glib::ControlFlow::Break;
+            }
             let summary = fs::read_to_string(directory.join("applied.json"))
                 .ok()
                 .and_then(|s| serde_json::from_str::<Value>(&s).ok())
