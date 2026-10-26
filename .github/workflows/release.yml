@@ -29,8 +29,9 @@ jobs:
       - run: cargo test --offline
       - run: cargo clippy --offline -- -D warnings
       - run: |
-          python tests/setup_store_smoke.py
-          python tests/snapshot_smoke.py
+          # Setup intentionally refuses root; exercise it as a normal user.
+          runuser -u nobody -- python tests/setup_store_smoke.py
+          runuser -u nobody -- python tests/snapshot_smoke.py
           luac -p presets/hypr/hyprland.lua
           lua tests/validate-hyprland.lua presets/hypr/hyprland.lua
       - run: bash scripts/package-release.sh
