@@ -4,6 +4,8 @@ version = "0.1.0"
 edition = "2024"
 description = "A beginner-friendly Arch Linux software browser"
 license = "MIT"
+repository = "https://github.com/danny19862025/ArchEasy"
+readme = "README.md"
 
 [dependencies]
 gtk = { package = "gtk4", version = "=0.10.3", features = ["v4_10"] }

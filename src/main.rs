@@ -422,6 +422,15 @@ window.archeasy.light { background: #f3f6fb; color: #182536; }
 fn theme_path() -> std::path::PathBuf {
     glib::user_config_dir().join("archeasy").join("theme")
 }
+// Missing, unreadable or corrupt preferences always use the desktop appearance.
+fn load_theme(path: &std::path::Path, palette_path: &std::path::Path) -> u32 {
+    match std::fs::read_to_string(path).unwrap_or_default().trim() {
+        "light" => 1,
+        "dark" => 2,
+        "custom" if custom_theme::Palette::try_load(palette_path).is_some() => 3,
+        _ => 0,
+    }
+}
 fn apply_theme(window: &gtk::ApplicationWindow, selected: u32, system_dark: bool) {
     window.remove_css_class("light");
     window.remove_css_class("dark");
@@ -472,19 +481,14 @@ fn build_ui(app: &gtk::Application) {
     let win = gtk::ApplicationWindow::builder()
         .application(app)
         .title("ArchEasy — Software made simple")
+        .icon_name("archeasy")
         .default_width(1000)
         .default_height(760)
         .build();
     win.add_css_class("archeasy");
     let system_dark = gtk::Settings::default()
         .is_some_and(|settings| settings.is_gtk_application_prefer_dark_theme());
-    let saved_theme = std::fs::read_to_string(theme_path()).unwrap_or_default();
-    let selected = match saved_theme.trim() {
-        "light" => 1,
-        "dark" => 2,
-        "custom" => 3,
-        _ => 0,
-    };
+    let selected = load_theme(&theme_path(), &custom_theme_path());
     let custom_css = gtk::CssProvider::new();
     custom_css.load_from_data(&custom_theme::Palette::load(&custom_theme_path()).arch_css());
     gtk::style_context_add_provider_for_display(
@@ -774,6 +778,34 @@ fn build_ui(app: &gtk::Application) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn corrupt_theme_preferences_use_system() {
+        let root = std::env::temp_dir().join(format!("archeasy-theme-test-{}", std::process::id()));
+        std::fs::create_dir_all(&root).unwrap();
+        let theme = root.join("theme");
+        let palette = root.join("custom-theme.json");
+        assert_eq!(load_theme(&theme, &palette), 0);
+        assert_eq!(load_theme(&root, &palette), 0); // unreadable as a file
+        for bytes in [b"garbage".as_slice(), b"", b"\xff\xfe", b"custom"] {
+            std::fs::write(&theme, bytes).unwrap();
+            assert_eq!(load_theme(&theme, &palette), 0);
+        }
+        for (value, expected) in [("system", 0), ("light\n", 1), ("dark", 2)] {
+            std::fs::write(&theme, value).unwrap();
+            assert_eq!(load_theme(&theme, &palette), expected);
+        }
+        std::fs::write(&theme, "custom").unwrap();
+        for value in [
+            "invalid JSON",
+            r##"["#bad", "#000000", "#000000", "#000000", "#000000", "#000000"]"##,
+        ] {
+            std::fs::write(&palette, value).unwrap();
+            assert_eq!(load_theme(&theme, &palette), 0);
+        }
+        custom_theme::Palette::default().save(&palette).unwrap();
+        assert_eq!(load_theme(&theme, &palette), 3);
+        std::fs::remove_dir_all(root).unwrap();
+    }
     #[test]
     fn terminal_failure_is_reported() {
         let error = launch_terminal(&[], &["/usr/bin/false"]).unwrap_err();

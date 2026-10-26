@@ -1,0 +1,30 @@
+name: CI
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    container: archlinux:base-devel
+    steps:
+      - name: Install build dependencies
+        run: pacman -Syu --noconfirm --needed git rust gtk4 pkgconf lua python desktop-file-utils
+      - uses: actions/checkout@v4
+      - name: Fetch locked dependencies
+        run: cargo fetch --locked
+      - name: Rust tests
+        run: cargo test --offline
+      - name: Clippy
+        run: cargo clippy --offline -- -D warnings
+      - name: Python smoke tests
+        run: |
+          python tests/setup_store_smoke.py
+          python tests/snapshot_smoke.py
+      - name: Lua and desktop validation
+        run: |
+          luac -p presets/hypr/hyprland.lua
+          lua tests/validate-hyprland.lua presets/hypr/hyprland.lua
+          desktop-file-validate assets/archeasy.desktop
+          bash -n scripts/PKGBUILD scripts/install-desktop.sh scripts/package-release.sh

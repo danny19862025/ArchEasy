@@ -1,0 +1,44 @@
+name: Release
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing version tag to release
+        required: true
+permissions:
+  contents: write
+jobs:
+  binary:
+    runs-on: ubuntu-latest
+    container: archlinux:base-devel
+    steps:
+      - name: Install build dependencies
+        run: pacman -Syu --noconfirm --needed git rust gtk4 pkgconf github-cli lua python
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+      - name: Check version matches tag
+        env:
+          RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+        run: |
+          version=$(sed -n 's/^version = "\([^"]*\)"/\1/p' Cargo.toml | head -n1)
+          test "$RELEASE_TAG" = "v$version"
+      - run: cargo fetch --locked
+      - run: cargo test --offline
+      - run: cargo clippy --offline -- -D warnings
+      - run: |
+          python tests/setup_store_smoke.py
+          python tests/snapshot_smoke.py
+          luac -p presets/hypr/hyprland.lua
+          lua tests/validate-hyprland.lua presets/hypr/hyprland.lua
+      - run: bash scripts/package-release.sh
+      - name: Publish binary and checksums
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+        run: |
+          gh release create "$RELEASE_TAG" dist/*.tar.gz dist/*.sha256 \
+            --repo "$GITHUB_REPOSITORY" --verify-tag --title "ArchEasy $RELEASE_TAG" \
+            --notes "Linux x86_64 binary built on Arch Linux. Requires GTK4 4.10+ and a supported terminal. Extract the archive, install archeasy on PATH, then run bash scripts/install-desktop.sh for the app launcher."

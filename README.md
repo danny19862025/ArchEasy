@@ -2,7 +2,59 @@
 
 A Rust + GTK4 software browser for Arch Linux. Search Pacman, AUR, and Flatpak together, filter by source, see installed packages, and start installation from a package card.
 
-The top bar includes **About** (app version and installation information) and a **Theme** selector: System, Light, Dark, or Custom. Theme changes apply immediately and are saved in `$XDG_CONFIG_HOME/archeasy/theme` (normally `~/.config/archeasy/theme`). System uses your desktop’s GTK appearance. The **Colours…** button beside Theme opens **Customize ArchEasy theme**. Choose background, surface, text, secondary text, accent, and border colours using colour pickers or #RRGGBB values. **Apply theme** saves and selects Custom; **Cancel** leaves the saved theme unchanged. **Reset colours** stages the default palette until you apply it. Custom colours are saved in `~/.config/archeasy/custom-theme.json` (under `$XDG_CONFIG_HOME` when set).
+## Screenshots
+
+Store (the **Software** tab), searching official packages:
+
+![ArchEasy Store with Firefox search results](assets/screenshots/store.png)
+
+Configs, with built-in presets and backup controls:
+
+![ArchEasy Configs tab](assets/screenshots/configs.png)
+
+## Install
+
+### Binary release
+
+Download the `x86_64` archive and its SHA-256 file from [GitHub Releases](https://github.com/danny19862025/ArchEasy/releases). Built on Arch Linux for Arch Linux; GTK4 4.10+ is required and is not bundled.
+
+```sh
+sha256sum -c archeasy-0.1.0-x86_64-linux.tar.gz.sha256
+tar -xzf archeasy-0.1.0-x86_64-linux.tar.gz
+cd archeasy-0.1.0-x86_64-linux
+install -Dm755 archeasy "$HOME/.local/bin/archeasy"
+bash scripts/install-desktop.sh
+```
+
+Ensure `~/.local/bin` is on your desktop session's `PATH`.
+
+### Build and install with Cargo
+
+```sh
+git clone https://github.com/danny19862025/ArchEasy.git
+cd ArchEasy
+cargo install --path . --locked
+bash scripts/install-desktop.sh
+```
+
+Cargo installs the executable only. The helper installs the launcher and icon under `$XDG_DATA_HOME` (default `~/.local/share`). Ensure `~/.cargo/bin` is on your desktop session's `PATH`.
+
+### Arch package / AUR recipe
+
+The VCS recipe is [scripts/PKGBUILD](scripts/PKGBUILD). Build it as your normal user in a separate folder:
+
+```sh
+mkdir -p /tmp/archeasy-package
+cp scripts/PKGBUILD /tmp/archeasy-package/
+cd /tmp/archeasy-package
+makepkg -si
+```
+
+This installs the binary, desktop launcher, icon and licenses. `paru -S archeasy-git` will work once a maintainer submits this recipe to the AUR; adding a PKGBUILD to GitHub does not register an AUR package.
+
+## Appearance
+
+The top bar includes **About** (app version and installation information) and a **Theme** selector: System, Light, Dark, or Custom. Theme changes apply immediately and are saved in `$XDG_CONFIG_HOME/archeasy/theme` (normally `~/.config/archeasy/theme`). System uses your desktop’s GTK appearance. Missing, unreadable or corrupt theme preferences fall back to System, including a Custom selection whose palette is missing or invalid. The **Colours…** button beside Theme opens **Customize ArchEasy theme**. Choose background, surface, text, secondary text, accent, and border colours using colour pickers or #RRGGBB values. **Apply theme** saves and selects Custom; **Cancel** leaves the saved theme unchanged. **Reset colours** stages the default palette until you apply it. Custom colours are saved in `~/.config/archeasy/custom-theme.json` (under `$XDG_CONFIG_HOME` when set).
 
 The app background includes the Arch logo with a subtle blue halo. Buttons have rounded styling, hover glow, visible keyboard focus, and pressed feedback. **Sound on / Muted** toggles the short click sound and saves the preference in `~/.config/archeasy/sound` (or `$XDG_CONFIG_HOME/archeasy/sound`). Sound playback uses PipeWire `pw-play`, PulseAudio `paplay`, or ALSA `aplay`, whichever is available, and runs outside the UI thread.
 
@@ -147,3 +199,11 @@ lua tests/validate-hyprland.lua presets/hypr/hyprland.lua
 References: https://wiki.archlinux.org/title/Pacman , https://wiki.archlinux.org/title/Aurweb_RPC_interface , https://docs.flatpak.org/en/latest/using-flatpak.html
 
 Config workflow references: [GitHub repository contents](https://docs.github.com/en/rest/repos/contents), [GitHub CLI Gist publishing](https://cli.github.com/manual/gh_gist_create), [GitHub sign-in](https://cli.github.com/manual/gh_auth_login), [chsh](https://man.archlinux.org/man/chsh.1).
+
+## Releases and license
+
+MIT licensed; see [LICENSE](LICENSE). Third-party AppCleaner attribution is retained in [assets/AppCleaner-LICENSE](assets/AppCleaner-LICENSE); asset notes are in [assets/README.md](assets/README.md).
+
+[CI](.github/workflows/ci.yml) fetches locked dependencies before running the offline Verify commands in an Arch Linux container. Four graphical Rust tests are intentionally excluded from headless runs.
+
+Maintainers can build a binary archive and SHA-256 file with `bash scripts/package-release.sh` after `cargo fetch --locked`. Pushing a matching version tag (for example `v0.1.0`) runs [the release workflow](.github/workflows/release.yml), verifies the code, and publishes the archive and checksums. The workflow also supports manual dispatch for an existing tag. Presets, scripts, logo and click sound used by the app are embedded in the binary.

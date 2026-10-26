@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=ArchEasy
+Comment=Browse Arch Linux software and manage personal configs
+Exec=archeasy
+Icon=archeasy
+Terminal=false
+Categories=Settings;PackageManager;
+Keywords=Arch;Linux;Pacman;AUR;Flatpak;Configs;
+StartupNotify=true
+StartupWMClass=io.github.archeasy.ArchEasy

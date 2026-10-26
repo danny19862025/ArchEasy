@@ -28,12 +28,14 @@ pub fn valid_hex(text: &str) -> bool {
 }
 impl Palette {
     pub fn load(path: &Path) -> Self {
+        Self::try_load(path).unwrap_or_default()
+    }
+    pub fn try_load(path: &Path) -> Option<Self> {
         fs::read_to_string(path)
             .ok()
             .and_then(|s| serde_json::from_str::<[String; 6]>(&s).ok())
             .filter(|colors| colors.iter().all(|s| valid_hex(s)))
             .map(Self)
-            .unwrap_or_default()
     }
     pub fn save(&self, path: &Path) -> io::Result<()> {
         if !self.0.iter().all(|s| valid_hex(s)) {
