@@ -14,6 +14,7 @@ case "$1" in
 esac
 ''',
  'paru':'#!/bin/bash\nprintf "aur-app 1 -> 2\\n"\n',
+ 'du':'#!/bin/bash\nfor ((i=0;i<100;i++)); do printf "du: Permission denied\\n" >&2; done\nprintf "2.5G /var/cache/pacman/pkg\\n"\nexit 1\n',
  'flatpak':'#!/bin/bash\nexit 0\n',
  'curl':'#!/bin/bash\nif [[ "$*" == *releases/latest* ]]; then printf \'{"tag_name":"v9.0.0"}\'; else printf \'{"results": []}\'; fi\n',
  }

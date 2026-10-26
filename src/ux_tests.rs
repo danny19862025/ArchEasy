@@ -275,6 +275,10 @@ fn native_search_and_guided_flows() {
         adw::StyleManager::default().is_dark()
     );
     if let Ok(path) = std::env::var("ARCHEASY_UI_SCREENSHOT") {
+        assert!(
+            win.measure(gtk::Orientation::Vertical, win.width()).0 < 1000,
+            "Cache permission errors must not force the window off-screen"
+        );
         let paintable = gtk::WidgetPaintable::new(Some(&win));
         let snapshot = gtk::Snapshot::new();
         paintable.snapshot(&snapshot, win.width() as f64, win.height() as f64);

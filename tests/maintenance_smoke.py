@@ -38,10 +38,10 @@ class MaintenanceTests(unittest.TestCase):
                 self.assertFalse(trace.exists())
 
     def test_cache_cleanup_requires_confirmation_and_keeps_three_versions(self):
-        for answer in ['n\n', 'y\n']:
+        for answer, du_exit in [('n\n', 0), ('y\n', 0), ('y\n', 1)]:
             with tempfile.TemporaryDirectory() as directory:
                 path = Path(directory)
-                (path/'du').write_text('#!/bin/bash\nprintf "2G /var/cache/pacman/pkg\\n"\n')
+                (path/'du').write_text(f'#!/bin/bash\nprintf "2G /var/cache/pacman/pkg\\n"\nexit {du_exit}\n')
                 (path/'paccache').write_text('#!/bin/bash\nexit 0\n')
                 (path/'sudo').write_text('#!/bin/bash\nprintf "%s\\n" "$@" > "$TRACE"\n')
                 for name in ['du', 'paccache', 'sudo']:

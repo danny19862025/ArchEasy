@@ -1,6 +1,6 @@
 # Maintainer: Danny Rudd <danny.rudd@icloud.com>
 pkgname=archeasy-git
-pkgver=0.1.1.r0.g0000000
+pkgver=0.1.2.r0.g0000000
 pkgrel=1
 pkgdesc='A beginner-friendly Arch Linux software browser and config manager'
 arch=('x86_64' 'aarch64')

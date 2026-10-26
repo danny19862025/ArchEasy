@@ -2,6 +2,27 @@
 use super::*;
 use std::{cell::RefCell, rc::Rc};
 
+fn cache_summary(out: std::process::Output) -> Result<String, String> {
+    let size = String::from_utf8_lossy(&out.stdout)
+        .split_whitespace()
+        .next()
+        .map(str::to_owned)
+        .ok_or("Cache size unavailable. Some cache folders may require administrator access.")?;
+    Ok(format!(
+        "Pacman cache: {}{size}{} · cleaning keeps the newest 3 versions per package.",
+        if out.status.success() {
+            ""
+        } else {
+            "at least "
+        },
+        if out.status.success() {
+            ""
+        } else {
+            " (some folders require administrator access)"
+        }
+    ))
+}
+
 fn parse_orphans(out: std::process::Output) -> Result<Vec<(String, String)>, String> {
     if out.status.code() == Some(1) && out.stdout.is_empty() && out.stderr.is_empty() {
         return Ok(vec![]);
@@ -53,6 +74,8 @@ fn orphan_window(parent: &gtk::ApplicationWindow) {
     );
     let status = label("Ready to inspect pacman -Qdt.", "subtitle");
     status.set_wrap(true);
+    status.set_lines(3);
+    status.set_ellipsize(gtk::pango::EllipsizeMode::End);
     body.append(&status);
     let remove = gtk::Button::with_label("Remove selected…");
     remove.set_widget_name("remove-selected-orphans");
@@ -158,6 +181,8 @@ pub fn add_controls(page: &gtk::Box, parent: &gtk::ApplicationWindow) {
     page.append(&actions);
     let status = label("Pacman cache: checking…", "subtitle");
     status.set_wrap(true);
+    status.set_lines(3);
+    status.set_ellipsize(gtk::pango::EllipsizeMode::End);
     status.set_widget_name("pacman-cache-size");
     page.append(&status);
     let status_scan = status.clone();
@@ -167,12 +192,17 @@ pub fn add_controls(page: &gtk::Box, parent: &gtk::ApplicationWindow) {
         let weak = button.downgrade();
         system_tools::task_with_finish(
             &status_scan,
-            || output("du", &["-sh", "/var/cache/pacman/pkg"]),
+            || {
+                cache_summary(
+                    Command::new("du")
+                        .args(["-sh", "/var/cache/pacman/pkg"])
+                        .env("LC_ALL", "C")
+                        .output()
+                        .map_err(|_| "Could not check the Pacman cache size.".to_owned())?,
+                )
+            },
             move |size| {
-                done.set_text(&format!(
-                    "Pacman cache: {} · cleaning keeps the newest 3 versions per package.",
-                    size.split_whitespace().next().unwrap_or("unknown")
-                ));
+                done.set_text(&size);
             },
             move || {
                 if let Some(button) = weak.upgrade() {
@@ -200,4 +230,21 @@ pub fn add_controls(page: &gtk::Box, parent: &gtk::ApplicationWindow) {
         });
     });
     refresh.emit_clicked();
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::os::unix::process::ExitStatusExt;
+    #[test]
+    fn cache_permission_errors_have_a_compact_lower_bound_summary() {
+        let out = std::process::Output {
+            status: std::process::ExitStatus::from_raw(256),
+            stdout: b"2.5G\t/var/cache/pacman/pkg\n".to_vec(),
+            stderr: "du: Permission denied\n".repeat(100).into_bytes(),
+        };
+        let summary = cache_summary(out).unwrap();
+        assert!(summary.contains("at least 2.5G"));
+        assert!(summary.len() < 200);
+    }
 }
