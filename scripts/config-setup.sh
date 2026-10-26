@@ -24,17 +24,24 @@ mkdir -p -- "$lock_dir" || exit 1
 exec 9>"$lock_dir/archeasy-config-setup.lock"
 if ! flock -n 9; then summary+=('Another config setup is running. Finish it first.'); finish 1; fi
 printf 'ArchEasy — Config setup\nReview package and password prompts in this terminal.\n'
+dependency_met() {
+    command -v "$1" >/dev/null 2>&1 && return 0
+    case "$1" in xdg-desktop-portal-hyprland|hyprpolkitagent) pacman -Q "$1" >/dev/null 2>&1 ;; *) return 1 ;; esac
+}
 missing=()
 for dependency in "${dependencies[@]}"; do
-    case "$dependency" in fish|starship|ghostty|fastfetch) ;; *) summary+=('Invalid setup dependency.'); finish 1 ;; esac
-    if ! command -v "$dependency" >/dev/null 2>&1; then missing+=("$dependency"); fi
+    case "$dependency" in fish|starship|ghostty|fastfetch|kitty|Hyprland|nvim|tmux|waybar|rofi|wofi|btop|thunar|swaync|xdg-desktop-portal-hyprland|hyprpolkitagent|wl-copy|cliphist|grim|slurp|wpctl|brightnessctl) ;; *) summary+=('Invalid setup dependency.'); finish 1 ;; esac
+    if ! dependency_met "$dependency"; then
+        case "$dependency" in Hyprland) package=hyprland ;; nvim) package=neovim ;; wl-copy) package=wl-clipboard ;; wpctl) package=wireplumber ;; *) package=$dependency ;; esac
+        missing+=("$package")
+    fi
 done
 if (( ${#missing[@]} > 0 )); then
     if [[ "$install_missing" == true ]]; then
         printf '\nInstalling missing apps (includes Arch system update): %s\n' "${missing[*]}"
         if sudo pacman -Syu --needed -- "${missing[@]}" 9>&-; then
             for dependency in "${dependencies[@]}"; do
-                if ! command -v "$dependency" >/dev/null 2>&1; then summary+=("Dependency still unavailable: $dependency; configs were not changed"); finish 1; fi
+                if ! dependency_met "$dependency"; then summary+=("Dependency still unavailable: $dependency; configs were not changed"); finish 1; fi
             done
             summary+=('Dependencies: installation completed');
         else summary+=('Dependencies: failed or cancelled; configs and login shell were not changed'); finish 1; fi

@@ -1,6 +1,8 @@
 # Embedded in ArchEasy; invoked with bash. $1 is a detected AUR helper or empty.
 set -u
 helper=${1:-}
+snapshot=${2:-none}
+case "$snapshot" in none|timeshift|snapper) ;; *) printf 'Invalid snapshot provider.\n'; exit 2 ;; esac
 case "$helper" in paru|yay|'') ;; *) printf 'Invalid AUR helper.\n'; exit 2 ;; esac
 
 finish() {
@@ -43,6 +45,12 @@ run_step() {
     fi
     return "$code"
 }
+
+# A requested snapshot is a prerequisite: failure stops every update step.
+case "$snapshot" in
+    timeshift) if ! run_step 'Timeshift · before update' sudo timeshift --create --comments 'ArchEasy: before system update' --tags O; then printf '\nSnapshot failed; no updates started.\n'; finish 1; fi ;;
+    snapper) if ! run_step 'Snapper · before update' sudo snapper -c root create --type single --description 'ArchEasy: before system update'; then printf '\nSnapshot failed; no updates started.\n'; finish 1; fi ;;
+esac
 
 if run_step 'Pacman · official packages' sudo pacman -Syu; then
     if [[ -n "$helper" ]]; then

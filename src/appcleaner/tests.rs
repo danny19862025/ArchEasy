@@ -29,6 +29,36 @@ fn wait_until(condition: impl Fn() -> bool) {
         std::thread::sleep(Duration::from_millis(10));
     }
 }
+#[allow(deprecated)] // GTK 4.10-compatible computed colour checks.
+fn check_about_windows(window: &gtk::ApplicationWindow) {
+    for name in ["archeasy-about", "cleaner-about"] {
+        named(window.upcast_ref(), name)
+            .downcast::<gtk::Button>()
+            .unwrap()
+            .emit_clicked();
+        settle();
+        let about = gtk::Window::list_toplevels()
+            .into_iter()
+            .filter_map(|w| w.downcast::<gtk::Window>().ok())
+            .find(|w| w.widget_name() == "archeasy-about-window" && w.is_visible())
+            .unwrap();
+        for class in ["light", "dark", "custom"] {
+            assert_eq!(about.has_css_class(class), window.has_css_class(class));
+        }
+        assert_eq!(
+            about.style_context().color(),
+            window.style_context().color()
+        );
+        let close = named(about.upcast_ref(), "about-close-x")
+            .downcast::<gtk::Button>()
+            .unwrap();
+        assert!(close.is_mapped());
+        snapshot(&about, &format!("about-{name}"));
+        close.emit_clicked();
+        settle();
+        assert!(!about.is_visible());
+    }
+}
 fn settle() {
     let start = Instant::now();
     wait_until(|| start.elapsed() >= Duration::from_millis(250));
@@ -119,38 +149,51 @@ fn embedded_cleaner_workflow() {
         .collect();
     assert_eq!(
         titles,
-        ["Software", "Configs", "AppCleaner", "Cloud Backup"]
+        [
+            "Software",
+            "Installed",
+            "Configs",
+            "AppCleaner",
+            "Cloud Backup",
+            "System",
+            "Permissions"
+        ]
     );
     stack.set_visible_child_name("appcleaner");
     let intro_end = Instant::now();
     wait_until(|| intro_end.elapsed() > Duration::from_secs(2));
     let original_size = (window.width(), window.height());
     snapshot(&window, "initial");
-    let settings = gtk::Settings::default().unwrap();
-    let original_settings = format!(
-        "{:?}",
-        settings.property_value("gtk-interface-color-scheme")
+    assert!(
+        !descendants(window.upcast_ref())
+            .iter()
+            .any(|w| w.widget_name() == "cleaner-customize-theme")
     );
-    let picker = descendants(window.upcast_ref())
-        .into_iter()
-        .find_map(|w| w.downcast::<gtk::ComboBoxText>().ok())
-        .unwrap();
-    for (id, name) in [("light", "light"), ("dark", "dark"), ("cyan", "cyan")] {
-        picker.set_active_id(Some(id));
-        settle();
-        assert_eq!(
-            format!(
-                "{:?}",
-                settings.property_value("gtk-interface-color-scheme")
-            ),
-            original_settings
-        );
-        snapshot(&window, name);
-    }
-    // Custom themes are independent, validated, persisted, and only applied on acceptance.
+    assert!(
+        !descendants(named(window.upcast_ref(), "cleaner-page").upcast_ref())
+            .iter()
+            .any(|w| w.is::<gtk::ComboBoxText>())
+    );
     let main_picker = named(window.upcast_ref(), "archeasy-theme")
         .downcast::<gtk::DropDown>()
         .unwrap();
+    for (selected, name) in [
+        (1, "shared-light"),
+        (2, "shared-dark"),
+        (0, "shared-system"),
+    ] {
+        main_picker.set_selected(selected);
+        settle();
+        let page = named(window.upcast_ref(), "cleaner-page");
+        assert_eq!(
+            page.style_context().color(),
+            window.style_context().color(),
+            "AppCleaner foreground must inherit ArchEasy in {name}"
+        );
+        snapshot(&window, name);
+        check_about_windows(&window);
+    }
+    // The single custom palette applies to both ArchEasy and AppCleaner.
     named(window.upcast_ref(), "archeasy-customize-theme")
         .downcast::<gtk::Button>()
         .unwrap()
@@ -181,36 +224,27 @@ fn embedded_cleaner_workflow() {
         "#a855f7"
     );
     assert_eq!(fs::read_to_string(crate::theme_path()).unwrap(), "custom");
-    named(window.upcast_ref(), "cleaner-customize-theme")
-        .downcast::<gtk::Button>()
-        .unwrap()
-        .emit_clicked();
-    let editor = theme_editor();
-    named(editor.upcast_ref(), "custom-colour-4")
-        .downcast::<gtk::Entry>()
-        .unwrap()
-        .set_text("#ff9800");
-    editor.response(gtk::ResponseType::Accept);
-    assert_eq!(picker.active_id().as_deref(), Some("custom"));
-    let cleaner_palette = crate::custom_theme::Palette::load(&theme::Theme::custom_path());
-    assert_eq!(cleaner_palette.0[4], "#ff9800");
-    assert_eq!(
-        crate::custom_theme::Palette::load(&crate::custom_theme_path()).0[4],
-        "#a855f7"
-    );
     settle();
-    snapshot(&window, "custom-cleaner");
-    named(window.upcast_ref(), "cleaner-customize-theme")
-        .downcast::<gtk::Button>()
-        .unwrap()
-        .emit_clicked();
-    let editor = theme_editor();
-    editor.response(gtk::ResponseType::Other(1));
-    editor.response(gtk::ResponseType::Cancel);
-    assert_eq!(
-        crate::custom_theme::Palette::load(&theme::Theme::custom_path()),
-        cleaner_palette
+    let page = named(window.upcast_ref(), "cleaner-page");
+    snapshot(&window, "shared-custom-cleaner");
+    let color = page.style_context().color();
+    let expected = gtk::gdk::RGBA::parse(
+        &crate::custom_theme::Palette::load(&crate::custom_theme_path()).0[2],
+    )
+    .unwrap();
+    assert_eq!(color, expected);
+    check_about_windows(&window);
+    assert!(
+        !glib::user_config_dir()
+            .join("archeasy/appcleaner-theme")
+            .exists()
     );
+    assert!(
+        !glib::user_config_dir()
+            .join("archeasy/appcleaner-custom-theme.json")
+            .exists()
+    );
+    snapshot(&window, "shared-custom-cleaner");
     main_picker.set_selected(0);
     main_picker.set_selected(3);
     stack.set_visible_child_name("configs");
@@ -281,6 +315,15 @@ fn embedded_cleaner_workflow() {
         .find(|b| b.label().as_deref() == Some("Copy uninstall command"))
         .unwrap();
     assert!(copy.is_sensitive());
+    let run = named(page.upcast_ref(), "cleaner-run-command")
+        .downcast::<gtk::Button>()
+        .unwrap();
+    assert!(run.is_sensitive());
+    assert!(!command.is_editable());
+    assert_eq!(
+        command.text(),
+        "flatpak uninstall 'io.example.CleanerFixture'"
+    );
     window.present();
     wait_until(|| window.is_active());
     copy.emit_clicked();

@@ -393,6 +393,45 @@ pub fn uninstall_hint(app: &App) -> String {
     }
     "No supported package owner found. Use your software center or the original installer (including Snap, AppImage, Nix, and immutable system apps).".into()
 }
+/// Run only generated, supported uninstall commands. Package data is passed as argv, never evaluated.
+pub fn uninstall_terminal_args(hint: &str) -> Result<Vec<String>, String> {
+    let parsed = gtk::glib::shell_parse_argv(hint).map_err(|e| e.to_string())?;
+    let args: Vec<String> = parsed
+        .iter()
+        .map(|s| s.to_string_lossy().into_owned())
+        .collect();
+    let prefixes: &[&[&str]] = &[
+        &["flatpak", "uninstall"],
+        &["sudo", "pacman", "-Rns"],
+        &["sudo", "apt", "remove"],
+        &["sudo", "dnf", "remove"],
+        &["sudo", "yum", "remove"],
+        &["sudo", "zypper", "remove"],
+    ];
+    if !prefixes.iter().any(|prefix| {
+        args.len() == prefix.len() + 1 && prefix.iter().zip(&args).all(|(a, b)| *a == b)
+    }) {
+        return Err("No supported uninstall command is available for this application.".into());
+    }
+    let package = args.last().ok_or("Missing package name")?;
+    if package.is_empty()
+        || package.starts_with('-')
+        || !package
+            .bytes()
+            .all(|c| c.is_ascii_alphanumeric() || b"+-._:".contains(&c))
+    {
+        return Err("Invalid package identifier; nothing was run.".into());
+    }
+    let mut terminal = vec![
+        "/usr/bin/bash".into(),
+        "-c".into(),
+        include_str!("../../scripts/cleaner-uninstall.sh").into(),
+        "archeasy-cleaner-uninstall".into(),
+    ];
+    terminal.extend(args);
+    Ok(terminal)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -478,5 +517,56 @@ mod tests {
         assert_eq!(candidates(&app, &roots).len(), 1);
         assert!(!roots.allowed(&home.join("config")));
         fs::remove_dir_all(home).unwrap();
+    }
+    #[test]
+    fn terminal_uninstall_rejects_shell_commands_and_keeps_package_as_an_argument() {
+        let args = uninstall_terminal_args("sudo pacman -Rns 'example-package'").unwrap();
+        assert_eq!(&args[4..], ["sudo", "pacman", "-Rns", "example-package"]);
+        for hint in [
+            "No supported package owner found.",
+            "sudo pacman -Rns --noconfirm",
+            "flatpak uninstall 'app; touch /tmp/should-not-run'",
+            "flatpak uninstall org.example.App && echo injected",
+            "sh -c echo",
+            "sudo pacman -Rns '$(touch /tmp/should-not-run)'",
+        ] {
+            assert!(uninstall_terminal_args(hint).is_err(), "{hint}");
+        }
+    }
+    #[test]
+    fn terminal_uninstall_shows_the_command_and_preserves_failure_status() {
+        use std::os::unix::fs::PermissionsExt;
+        let dir = std::env::temp_dir().join(format!(
+            "archeasy-uninstall-{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        fs::create_dir(&dir).unwrap();
+        let executable = dir.join("flatpak");
+        fs::write(
+            &executable,
+            "#!/usr/bin/bash\nprintf '%s\\n' \"$@\" > \"$TRACE\"\nexit 7\n",
+        )
+        .unwrap();
+        fs::set_permissions(&executable, fs::Permissions::from_mode(0o700)).unwrap();
+        let args = uninstall_terminal_args("flatpak uninstall 'org.example.Fixture'").unwrap();
+        let out = Command::new(&args[0])
+            .args(&args[1..])
+            .env("PATH", &dir)
+            .env("TRACE", dir.join("trace"))
+            .stdin(std::process::Stdio::null())
+            .output()
+            .unwrap();
+        assert_eq!(out.status.code(), Some(7));
+        assert_eq!(
+            fs::read_to_string(dir.join("trace")).unwrap(),
+            "uninstall\norg.example.Fixture\n"
+        );
+        let text = String::from_utf8_lossy(&out.stdout);
+        assert!(text.contains("Command: flatpak uninstall org.example.Fixture"));
+        assert!(text.contains("exit 7"));
+        fs::remove_dir_all(dir).unwrap();
     }
 }

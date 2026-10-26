@@ -52,6 +52,7 @@ pub(super) fn import_file(
         name: name.trim().to_owned(),
         files: vec![(relative.to_owned(), bytes)],
         dependencies: vec![],
+        managed_parents: vec![],
     };
     let plan = Plan::parse(&plan.json())?;
     let target = directory.join(&plan.id);
@@ -122,7 +123,7 @@ fn export_files(plan: &Plan, root: &Path) -> Result<(Stage, Vec<PathBuf>), Strin
         files.push(target);
     }
     let manifest = directory.join("archeasy-preset.json");
-    write_atomic(&manifest,json!({"format_version":1,"name":plan.name,"files":mapping,"destination":"Paths are relative to XDG_CONFIG_HOME. Review before applying."}).to_string().as_bytes(),0o600)?;
+    write_atomic(&manifest,json!({"format_version":1,"name":plan.name,"dependencies":plan.dependencies,"files":mapping,"destination":"Paths are relative to XDG_CONFIG_HOME. Review before applying."}).to_string().as_bytes(),0o600)?;
     files.push(manifest);
     Ok((stage, files))
 }
@@ -166,7 +167,7 @@ pub(super) fn publish(
 pub(super) fn export_dialog(parent: &gtk::ApplicationWindow, plan: Plan) {
     #[allow(deprecated)]
     let dialog = gtk::Dialog::builder()
-        .title(format!("Export to GitHub Gist · {}", plan.name))
+        .title(format!("Export to GitHub · {}", plan.name))
         .transient_for(parent)
         .modal(true)
         .default_width(800)
@@ -176,7 +177,7 @@ pub(super) fn export_dialog(parent: &gtk::ApplicationWindow, plan: Plan) {
     #[allow(deprecated)]
     {
         dialog.add_button("Cancel", gtk::ResponseType::Cancel);
-        dialog.add_button("Publish Gist", gtk::ResponseType::Accept);
+        dialog.add_button("Publish preset", gtk::ResponseType::Accept);
         dialog.set_default_response(gtk::ResponseType::Cancel);
     }
     let body = dialog.content_area();
@@ -225,6 +226,11 @@ pub(super) fn export_dialog(parent: &gtk::ApplicationWindow, plan: Plan) {
     body.append(&connection);
     let public = gtk::CheckButton::with_label("Publish publicly (unchecked = secret / unlisted)");
     body.append(&public);
+    let repository = gtk::Entry::builder()
+        .placeholder_text("Optional: owner/repo (empty = Gist)")
+        .build();
+    repository.set_tooltip_text(Some("Uploads a new preset JSON file to an existing repository using its default branch. Repository visibility controls access."));
+    body.append(&repository);
     let view = gtk::TextView::builder()
         .monospace(true)
         .editable(false)
@@ -255,6 +261,7 @@ pub(super) fn export_dialog(parent: &gtk::ApplicationWindow, plan: Plan) {
             return;
         }
         let public = public.is_active();
+        let repo = repository.text().trim().to_owned();
         let plan = plan.clone();
         let program = gh_program();
         let staging = glib::user_cache_dir().join("archeasy/gist-export");
@@ -264,7 +271,11 @@ pub(super) fn export_dialog(parent: &gtk::ApplicationWindow, plan: Plan) {
         status.set_text("Publishing the reviewed preset…");
         let (tx, rx) = std::sync::mpsc::channel();
         std::thread::spawn(move || {
-            let _ = tx.send(publish(&plan, public, &program, &staging));
+            let _ = tx.send(if repo.is_empty() {
+                publish(&plan, public, &program, &staging)
+            } else {
+                publish_repo(&plan, &repo)
+            });
         });
         let dialog = dialog.downgrade();
         let status = status.clone();
@@ -338,11 +349,22 @@ pub(super) fn add_custom_cards(
         let r = refresh.clone();
         apply.connect_clicked(move |_| {
             if let Some(parent) = weak.upgrade() {
-                workflow::review_dialog(&parent, p.clone(), workflow::Mode::Direct, &s, &r, None);
+                workflow::review_dialog(
+                    &parent,
+                    p.clone(),
+                    if p.dependencies.is_empty() {
+                        workflow::Mode::Direct
+                    } else {
+                        workflow::Mode::Setup
+                    },
+                    &s,
+                    &r,
+                    None,
+                );
             }
         });
         actions.append(&apply);
-        let export = gtk::Button::with_label("Export to Gist");
+        let export = gtk::Button::with_label("Export to GitHub");
         let weak = parent.downgrade();
         let p = plan.clone();
         export.connect_clicked(move |_| {
@@ -374,7 +396,7 @@ pub(super) fn add_custom_cards(
     }
 }
 pub(super) fn add_import_button(
-    folders: &gtk::Box,
+    folders: &gtk::FlowBox,
     list: &gtk::Box,
     parent: &gtk::ApplicationWindow,
     status: &gtk::Label,
@@ -382,7 +404,7 @@ pub(super) fn add_import_button(
 ) {
     let import = gtk::Button::with_label("Import current config…");
     import.set_widget_name("import-config-preset");
-    folders.append(&import);
+    folders.insert(&import, -1);
     let weak = parent.downgrade();
     let list = list.clone();
     let status = status.clone();
@@ -399,5 +421,195 @@ pub(super) fn add_import_button(
 if let Some(parent)=weak.upgrade(){match import_file(&path,&entry.text(),&glib::user_config_dir(),&presets_dir()){Ok(plan)=>{status.set_text(&format!("Saved {} as a local preset. Your current file was not changed.",plan.name));add_custom_cards(&list,&parent,&status,&refresh);dialog.close();},Err(e)=>notice(&parent,"Could not import config",&e)}}});dialog.present();
             }
         });
+    });
+}
+
+fn github_part(part: &str) -> bool {
+    !part.is_empty()
+        && !part.starts_with('-')
+        && part != "."
+        && part != ".."
+        && part
+            .bytes()
+            .all(|c| c.is_ascii_alphanumeric() || b"-_.".contains(&c))
+}
+fn gh_text(program: &Path, args: &[&str]) -> Result<String, String> {
+    let out = std::process::Command::new(program)
+        .args(args)
+        .env("GH_PROMPT_DISABLED", "1")
+        .output()
+        .map_err(|e| e.to_string())?;
+    if !out.status.success() {
+        return Err(String::from_utf8_lossy(&out.stderr).into());
+    }
+    if out.stdout.len() > 40 * 1024 * 1024 {
+        return Err("GitHub response exceeds 40 MiB".into());
+    }
+    String::from_utf8(out.stdout).map_err(|e| e.to_string())
+}
+pub(super) fn fetch_url(url: &str) -> Result<Plan, String> {
+    fetch_url_with(url, &gh_program())
+}
+pub(super) fn fetch_url_with(url: &str, program: &Path) -> Result<Plan, String> {
+    if let Some(path) = url.strip_prefix("https://gist.github.com/") {
+        let parts: Vec<_> = path.trim_end_matches('/').split('/').collect();
+        if parts.len() != 2
+            || !github_part(parts[0])
+            || parts[1].is_empty()
+            || !parts[1].bytes().all(|b| b.is_ascii_hexdigit())
+        {
+            return Err("Paste a Gist URL such as https://gist.github.com/user/id".into());
+        }
+        let id = parts[1];
+        let text = gh_text(
+            program,
+            &["gist", "view", id, "--filename", "archeasy-preset.json"],
+        )?;
+        let manifest: Value = serde_json::from_str(&text).map_err(|e| e.to_string())?;
+        if manifest["format_version"] != 1 {
+            return Err("Unsupported Gist format".into());
+        }
+        let entries = manifest["files"]
+            .as_array()
+            .filter(|v| v.len() <= 100)
+            .ok_or("Invalid Gist manifest")?;
+        let mut files = vec![];
+        let mut total = 0;
+        for entry in entries {
+            let filename = entry["gist_file"]
+                .as_str()
+                .filter(|n| github_part(n) && !n.starts_with('-'))
+                .ok_or("Invalid Gist filename")?;
+            let path = entry["config_path"].as_str().ok_or("Missing config path")?;
+            let text = gh_text(program, &["gist", "view", id, "--filename", filename])?;
+            let bytes = match entry["encoding"].as_str() {
+                Some("utf-8") => text.into_bytes(),
+                Some("base64") => glib::base64_decode(text.trim()).to_vec(),
+                _ => return Err("Unsupported Gist encoding".into()),
+            };
+            total += bytes.len();
+            if total > 8 * 1024 * 1024 {
+                return Err("Gist exceeds 8 MiB".into());
+            }
+            files.push(json!({"path":path,"bytes":bytes}));
+        }
+        return Plan::parse(
+            &json!({"id":format!("gist-{id}"),"name":manifest["name"],"files":files,"dependencies":manifest["dependencies"]}),
+        );
+    }
+    if let Some(path) = url.strip_prefix("https://github.com/") {
+        let parts: Vec<_> = path.split('/').collect();
+        if parts.len() < 6 || parts[2] != "blob" || !parts.iter().all(|s| github_part(s)) {
+            return Err("Paste the GitHub file URL of an ArchEasy preset JSON (branch names must not contain slashes).".into());
+        }
+        let endpoint = format!(
+            "repos/{}/{}/contents/{}?ref={}",
+            parts[0],
+            parts[1],
+            parts[4..].join("/"),
+            parts[3]
+        );
+        let text = gh_text(
+            program,
+            &[
+                "api",
+                "--hostname",
+                "github.com",
+                "-H",
+                "Accept: application/vnd.github.raw+json",
+                &endpoint,
+            ],
+        )?;
+        return Plan::parse(&serde_json::from_str::<Value>(&text).map_err(|e| e.to_string())?);
+    }
+    Err("Use an HTTPS gist.github.com or github.com preset URL.".into())
+}
+fn publish_repo(plan: &Plan, repo: &str) -> Result<String, String> {
+    let parts: Vec<_> = repo.split('/').collect();
+    if parts.len() != 2 || !parts.iter().all(|p| github_part(p)) {
+        return Err("Enter an existing repository as owner/repo.".into());
+    }
+    let path = format!("archeasy/{}-{}.json", plan.id, stamp());
+    let body = json!({"message":format!("Save ArchEasy preset: {}",plan.name),"content":glib::base64_encode(plan.json().to_string().as_bytes()).to_string()});
+    let mut child = std::process::Command::new(gh_program())
+        .args([
+            "api",
+            "--hostname",
+            "github.com",
+            "--method",
+            "PUT",
+            &format!("repos/{repo}/contents/{path}"),
+            "--input",
+            "-",
+        ])
+        .env("GH_PROMPT_DISABLED", "1")
+        .stdin(std::process::Stdio::piped())
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
+        .spawn()
+        .map_err(|e| e.to_string())?;
+    child
+        .stdin
+        .take()
+        .ok_or("Could not open GitHub request")?
+        .write_all(body.to_string().as_bytes())
+        .map_err(|e| e.to_string())?;
+    let out = child.wait_with_output().map_err(|e| e.to_string())?;
+    if !out.status.success() {
+        return Err(String::from_utf8_lossy(&out.stderr).into());
+    }
+    let value: Value = serde_json::from_slice(&out.stdout).map_err(|e| e.to_string())?;
+    value["content"]["html_url"]
+        .as_str()
+        .map(str::to_owned)
+        .ok_or("GitHub returned no file URL".into())
+}
+pub(super) fn add_url_button(
+    bar: &gtk::FlowBox,
+    list: &gtk::Box,
+    parent: &gtk::ApplicationWindow,
+    status: &gtk::Label,
+    refresh: &gtk::Button,
+) {
+    let button = gtk::Button::with_label("Import Gist / Repo URL…");
+    button.set_widget_name("import-gist-url");
+    bar.insert(&button, -1);
+    let weak = parent.downgrade();
+    let list = list.clone();
+    let s = status.clone();
+    let r = refresh.clone();
+    button.connect_clicked(move |_| {
+        let Some(parent) = weak.upgrade() else { return; };
+        let dialog = gtk::Dialog::builder().title("Import an ArchEasy preset from GitHub").transient_for(&parent).modal(true).default_width(640).build();
+        let body = dialog.content_area(); body.set_spacing(12); body.set_margin_top(16); body.set_margin_bottom(16); body.set_margin_start(16); body.set_margin_end(16);
+        let entry = gtk::Entry::builder().placeholder_text("https://gist.github.com/user/id").build(); body.append(&entry);
+        let note = super::super::label("Supports Gists and preset JSON files exported by ArchEasy. GitHub CLI is required; private presets need gh auth login. Import saves a local copy and opens the diff for review.", "subtitle"); note.set_wrap(true); body.append(&note);
+        let message = super::super::label("", "subtitle"); message.set_wrap(true); body.append(&message);
+        dialog.add_button("Cancel", gtk::ResponseType::Cancel); dialog.add_button("Fetch & review", gtk::ResponseType::Accept);
+        let weak = parent.downgrade(); let list = list.clone(); let s = s.clone(); let r = r.clone();
+        dialog.connect_response(move |dialog, response| {
+            if response != gtk::ResponseType::Accept { dialog.close(); return; }
+            dialog.set_response_sensitive(gtk::ResponseType::Accept, false);
+            let url = entry.text().trim().to_string(); let (tx, rx) = std::sync::mpsc::channel();
+            std::thread::spawn(move || { let _ = tx.send(fetch_url(&url)); });
+            message.set_text("Fetching preset…");
+            let dialog = dialog.downgrade(); let weak = weak.clone(); let list = list.clone(); let s = s.clone(); let r = r.clone(); let message = message.clone();
+            glib::timeout_add_local(std::time::Duration::from_millis(100), move || {
+                let Some(dialog) = dialog.upgrade() else { return glib::ControlFlow::Break; };
+                let result = match rx.try_recv() { Ok(r) => r, Err(std::sync::mpsc::TryRecvError::Empty) => return glib::ControlFlow::Continue, Err(_) => Err("Import stopped unexpectedly".into()) };
+                dialog.set_response_sensitive(gtk::ResponseType::Accept, true);
+                match result {
+                    Err(e) => message.set_text(&e),
+                    Ok(mut plan) => {
+                        // Never let a remote identifier overwrite an existing local preset.
+                        plan.id = format!("import-{}", stamp());
+                        let saved = (|| { let directory = presets_dir().join(&plan.id); fs::create_dir_all(&directory).map_err(|e|e.to_string())?; fs::set_permissions(&directory, fs::Permissions::from_mode(0o700)).map_err(|e|e.to_string())?; write_atomic(&directory.join("preset.json"), plan.json().to_string().as_bytes(), 0o600) })();
+                        if let Err(e) = saved { message.set_text(&e); }
+                        else if let Some(parent) = weak.upgrade() { add_custom_cards(&list, &parent, &s, &r); dialog.close(); let mode = if plan.dependencies.is_empty() { workflow::Mode::Direct } else { workflow::Mode::Setup }; workflow::review_dialog(&parent, plan, mode, &s, &r, None); }
+                    }
+                }
+                glib::ControlFlow::Break
+            });
+        }); dialog.present();
     });
 }

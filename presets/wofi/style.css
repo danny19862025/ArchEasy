@@ -1,0 +1,6 @@
+window { background-color: #101722; color: #c0caf5; border: 2px solid #33ccff; border-radius: 15px; }
+#input { margin: 12px; padding: 8px; background-color: #1b2738; color: #c0caf5; border: 1px solid #537586; }
+#inner-box { margin: 8px; }
+#entry { padding: 8px; border-radius: 8px; }
+#entry:selected { background-color: #33ccff; color: #101722; }
+#text:selected { color: #101722; }

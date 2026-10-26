@@ -376,5 +376,269 @@ fn configs_workflow_ui() {
         .unwrap();
     assert!(!public.is_active());
     export.response(gtk::ResponseType::Cancel);
+    export.response(gtk::ResponseType::Cancel);
+    for (button_name, window_name) in [
+        ("config-timeline", "config-history-window"),
+        ("community-presets", "community-presets-window"),
+    ] {
+        descendants(window.upcast_ref())
+            .into_iter()
+            .find(|w| w.widget_name() == button_name)
+            .unwrap()
+            .downcast::<gtk::Button>()
+            .unwrap()
+            .emit_clicked();
+        let child = gtk::Window::list_toplevels()
+            .into_iter()
+            .filter_map(|w| w.downcast::<gtk::Window>().ok())
+            .find(|w| w.widget_name() == window_name && w.is_visible())
+            .unwrap();
+        child.close();
+    }
+    // Cancelling conflict resolution keeps the original link and manager source untouched.
+    let managed = root_for_ui_fixture();
+    workflow::review_dialog(
+        &window,
+        Plan {
+            id: "managed-ui".into(),
+            name: "Managed fixture".into(),
+            files: vec![(
+                "managed-fixture/settings.conf".into(),
+                b"new config".to_vec(),
+            )],
+            dependencies: vec![],
+            managed_parents: vec![],
+        },
+        workflow::Mode::Direct,
+        &status,
+        &refresh,
+        None,
+    );
+    let conflict = gtk::Window::list_toplevels()
+        .into_iter()
+        .filter_map(|w| w.downcast::<gtk::Dialog>().ok())
+        .find(|w| w.widget_name() == "managed-config-conflicts" && w.is_visible())
+        .unwrap();
+    conflict.response(gtk::ResponseType::Cancel);
+    assert!(glib::user_config_dir().join("managed-fixture").is_symlink());
+    assert_eq!(
+        fs::read_to_string(managed.join("settings.conf")).unwrap(),
+        "original managed fixture"
+    );
+    crate::system_tools::update_dialog(&window, &status);
+    let update = gtk::Window::list_toplevels()
+        .into_iter()
+        .filter_map(|w| w.downcast::<gtk::Dialog>().ok())
+        .find(|w| w.widget_name() == "system-update-snapshot-dialog" && w.is_visible())
+        .unwrap();
+    update.response(gtk::ResponseType::Cancel);
     window.close();
+}
+
+#[test]
+fn portable_zip_contains_history_and_restores_current_configs_on_another_pc() {
+    let temp = Temp::new();
+    let root = temp.0.join("old-pc");
+    fs::create_dir_all(root.join("fish")).unwrap();
+    fs::write(root.join("fish/config.fish"), "before setup\n").unwrap();
+    let plan = Plan::stack();
+    let backups = temp.0.join("backups");
+    let backup = apply_plan(&plan, &root, &backups).unwrap();
+    let before = archive::read(&backup.with_extension("zip")).unwrap();
+    assert_eq!(
+        before.files,
+        vec![("fish/config.fish".into(), b"before setup\n".to_vec())]
+    );
+    let zip = temp.0.join("transfer.zip");
+    archive::export(&backups, &root, &zip).unwrap();
+    assert_eq!(
+        fs::metadata(&zip).unwrap().permissions().mode() & 0o777,
+        0o600
+    );
+    let portable = archive::read(&zip).unwrap();
+    assert_eq!(portable.files.len(), plan.files.len());
+    let new_root = temp.0.join("new-pc");
+    apply_plan(&portable, &new_root, &temp.0.join("new-backups")).unwrap();
+    for (name, _) in portable.files {
+        assert_eq!(
+            fs::read(new_root.join(&name)).unwrap(),
+            fs::read(root.join(name)).unwrap()
+        );
+    }
+    assert!(archive::export(&backups, &root, &zip).is_err());
+    let output = Command::new("python3").args(["-c", "import sys,zipfile; z=zipfile.ZipFile(sys.argv[1]); assert any(n.endswith('/manifest.json') for n in z.namelist()); assert any(n.endswith('/files/fish/config.fish') for n in z.namelist())"]).arg(&zip).output().unwrap();
+    assert!(output.status.success());
+}
+#[test]
+fn every_new_preset_roundtrips_and_full_setup_includes_the_desktop() {
+    let full = Plan::stack();
+    for name in [
+        "fish/config.fish",
+        "starship.toml",
+        "ghostty/config",
+        "kitty/kitty.conf",
+        "fastfetch/config.jsonc",
+        "hypr/hyprland.lua",
+    ] {
+        assert!(full.files.iter().any(|(n, _)| n == name));
+    }
+    for preset in &PRESETS[7..] {
+        let temp = Temp::new();
+        let root = temp.0.join("config");
+        let plan = Plan::builtin(preset);
+        assert_eq!(
+            Plan::parse(&plan.json()).unwrap().dependencies,
+            plan.dependencies
+        );
+        let backup = apply_plan(&plan, &root, &temp.0.join("backups")).unwrap();
+        assert!(backup.with_extension("zip").is_file());
+        restore_snapshot(&backup, &root).unwrap();
+        assert!(plan.files.iter().all(|(n, _)| !root.join(n).exists()));
+    }
+}
+#[test]
+fn github_import_rejects_other_hosts_options_and_traversal_before_network() {
+    for url in [
+        "https://evil.example/a",
+        "https://gist.github.com/--help/abcd",
+        "https://gist.github.com/user/../../bad",
+        "https://github.com/u/r/blob/main/../bad.json",
+        "https://github.com/u/r/blob/main/-/bad?x=y",
+    ] {
+        assert!(sharing::fetch_url(url).is_err());
+    }
+}
+
+#[test]
+fn github_import_roundtrips_text_binary_dependencies_and_repo_files_without_network() {
+    let temp = Temp::new();
+    let program = temp.0.join("gh");
+    let manifest = serde_json::json!({"format_version":1,"name":"Imported Fish","dependencies":["fish", "evil-command"],"files":[{"gist_file":"config.fish","config_path":"fish/config.fish","encoding":"utf-8"},{"gist_file":"image.b64","config_path":"fastfetch/arch.png","encoding":"base64"}]});
+    fs::write(temp.0.join("archeasy-preset.json"), manifest.to_string()).unwrap();
+    fs::write(temp.0.join("config.fish"), "set -g greeting hello\n").unwrap();
+    fs::write(temp.0.join("image.b64"), "AAECAw==").unwrap();
+    executable(
+        &program,
+        "#!/bin/bash\nif [[ $1 == gist ]]; then /usr/bin/cat \"${0%/*}/$5\"; else /usr/bin/cat \"${0%/*}/repo.json\"; fi\n",
+    );
+    let plan = sharing::fetch_url_with("https://gist.github.com/user/abc123", &program).unwrap();
+    assert_eq!(plan.dependencies, ["fish"]);
+    assert_eq!(plan.files[0].1, b"set -g greeting hello\n");
+    assert_eq!(plan.files[1].1, [0, 1, 2, 3]);
+    fs::write(temp.0.join("repo.json"), plan.json().to_string()).unwrap();
+    let repo = sharing::fetch_url_with(
+        "https://github.com/user/repo/blob/main/archeasy/fish.json",
+        &program,
+    )
+    .unwrap();
+    assert_eq!(repo.files, plan.files);
+    let mut malicious = manifest;
+    malicious["files"][0]["config_path"] = serde_json::json!("../../outside");
+    fs::write(temp.0.join("archeasy-preset.json"), malicious.to_string()).unwrap();
+    assert!(sharing::fetch_url_with("https://gist.github.com/user/abc123", &program).is_err());
+}
+
+#[test]
+fn managed_folder_resolution_detaches_locally_and_restore_relinks_original_manager() {
+    let temp = Temp::new();
+    let root = temp.0.join("config");
+    let source = temp.0.join("stow/fish");
+    fs::create_dir_all(&source).unwrap();
+    fs::create_dir_all(&root).unwrap();
+    fs::write(source.join("config.fish"), "manager original\n").unwrap();
+    fs::write(source.join("unrelated"), "keep this file\n").unwrap();
+    std::os::unix::fs::symlink(&source, root.join("fish")).unwrap();
+    let mut plan = Plan::builtin(&PRESETS[2]);
+    assert!(reviewed(&plan, &root).is_err());
+    plan.managed_parents = conflicts::links(&plan, &root).unwrap();
+    let before = reviewed(&plan, &root).unwrap();
+    assert!(root.join("fish").is_symlink());
+    let backup = apply_reviewed(&plan, &before, &root, &temp.0.join("backups")).unwrap();
+    assert!(!root.join("fish").is_symlink());
+    assert_eq!(
+        fs::read_to_string(source.join("config.fish")).unwrap(),
+        "manager original\n"
+    );
+    assert_eq!(
+        fs::read_to_string(root.join("fish/unrelated")).unwrap(),
+        "keep this file\n"
+    );
+    assert!(backup.with_extension("zip").is_file());
+    fs::write(root.join("fish/local-added-later"), "retain me").unwrap();
+    restore_snapshot(&backup, &root).unwrap();
+    assert!(root.join("fish").is_symlink());
+    assert_eq!(fs::read_link(root.join("fish")).unwrap(), source);
+    assert_eq!(
+        fs::read_dir(backup.join("managed-retained"))
+            .unwrap()
+            .count(),
+        1
+    );
+}
+#[test]
+fn git_versions_preserve_unrelated_staged_files_and_skip_staged_config_paths() {
+    let temp = Temp::new();
+    let root = temp.0.join("config");
+    fs::create_dir_all(&root).unwrap();
+    let git = |args: &[&str]| {
+        let out = Command::new("git")
+            .arg("-C")
+            .arg(&root)
+            .args(args)
+            .output()
+            .unwrap();
+        assert!(
+            out.status.success(),
+            "{}",
+            String::from_utf8_lossy(&out.stderr)
+        );
+        String::from_utf8_lossy(&out.stdout).trim().to_owned()
+    };
+    git(&["init", "-q"]);
+    fs::write(root.join("unrelated.txt"), "staged by user").unwrap();
+    git(&["add", "--", "unrelated.txt"]);
+    let mut plan = Plan::builtin(&PRESETS[2]);
+    let backups = temp.0.join("backups");
+    let first = apply_plan(&plan, &root, &backups).unwrap();
+    assert!(
+        history::message(&first).starts_with("Git commit:"),
+        "{}",
+        history::message(&first)
+    );
+    assert_eq!(git(&["diff", "--cached", "--name-only"]), "unrelated.txt");
+    assert!(!git(&["show", "--format=", "--name-only", "HEAD"]).contains("unrelated"));
+    fs::write(root.join("fish/config.fish"), "staged config\n").unwrap();
+    git(&["add", "--", "fish/config.fish"]);
+    plan.files[0].1 = b"new working tree config\n".to_vec();
+    let second = apply_plan(&plan, &root, &backups).unwrap();
+    assert!(history::message(&second).contains("staged changes"));
+    assert_eq!(git(&["show", ":fish/config.fish"]), "staged config");
+    assert_eq!(history::versions(&backups).len(), 2);
+    let old = history::versions(&backups)
+        .into_iter()
+        .find(|(_, p, _)| p.files[0].1 != b"new working tree config\n")
+        .unwrap()
+        .1;
+    apply_plan(&old, &root, &backups).unwrap();
+    assert_ne!(
+        fs::read(root.join("fish/config.fish")).unwrap(),
+        b"new working tree config\n"
+    );
+}
+#[test]
+fn imported_presets_cannot_approve_link_detachment() {
+    let mut value = Plan::builtin(&PRESETS[2]).json();
+    value["managed_parents"] = serde_json::json!([["fish", "/outside"]]);
+    assert!(Plan::parse(&value).unwrap().managed_parents.is_empty());
+}
+
+fn root_for_ui_fixture() -> PathBuf {
+    let managed = glib::user_data_dir().join("managed-ui-source");
+    fs::create_dir_all(&managed).unwrap();
+    fs::write(managed.join("settings.conf"), "original managed fixture").unwrap();
+    let link = glib::user_config_dir().join("managed-fixture");
+    if !link.is_symlink() {
+        std::os::unix::fs::symlink(&managed, &link).unwrap();
+    }
+    managed
 }

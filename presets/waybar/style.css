@@ -1,0 +1,6 @@
+* { font-family: monospace; font-size: 13px; }
+window#waybar { background: rgba(16, 23, 34, 0.9); color: #c0caf5; border-bottom: 2px solid #33ccff; }
+#workspaces button { color: #c0caf5; padding: 0 10px; border-radius: 8px; }
+#workspaces button.active { color: #101722; background: #33ccff; }
+#clock { color: #ff99c8; }
+#pulseaudio, #network, #battery, #clock { padding: 0 12px; }

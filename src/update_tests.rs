@@ -126,3 +126,26 @@ fn active_update_lock_prevents_duplicate_transactions() {
     assert!(trace.is_empty());
     assert!(String::from_utf8_lossy(&out.stdout).contains("already running"));
 }
+
+#[test]
+fn requested_snapshot_precedes_updates_and_failure_stops_every_package_step() {
+    for (provider, fail) in [("timeshift", "0"), ("snapper", "0"), ("timeshift", "1")] {
+        let fixture = Fixture::new();
+        let sudo = fixture.0.join("sudo");
+        fs::write(&sudo,"#!/usr/bin/bash\nprintf 'sudo %s\\n' \"$*\" >> \"$TRACE\"\nif [[ $1 == timeshift || $1 == snapper ]]; then exit \"$SNAPSHOT_RESULT\"; fi\nexit 0\n").unwrap();
+        let out = Command::new("/usr/bin/bash")
+            .args(["-c", SYSTEM_UPDATE_SCRIPT, "test-update", "paru", provider])
+            .env("PATH", format!("{}:/usr/bin", fixture.0.display()))
+            .env("XDG_RUNTIME_DIR", &fixture.0)
+            .env("TRACE", fixture.0.join("trace"))
+            .env("SNAPSHOT_RESULT", fail)
+            .stdin(Stdio::null())
+            .output()
+            .unwrap();
+        let trace = fs::read_to_string(fixture.0.join("trace")).unwrap();
+        assert!(trace.starts_with(&format!("sudo {provider} ")));
+        assert_eq!(out.status.success(), fail == "0");
+        assert_eq!(trace.contains("pacman -Syu"), fail == "0");
+        assert_eq!(trace.contains("flatpak update"), fail == "0");
+    }
+}

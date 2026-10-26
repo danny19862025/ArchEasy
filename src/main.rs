@@ -1,8 +1,15 @@
+mod about;
 mod appcleaner;
 mod appearance;
 mod cloud;
 mod configs;
 mod custom_theme;
+mod flatpak_permissions;
+mod snapshots;
+mod store;
+mod system_export;
+mod system_tools;
+mod task_search;
 
 use gtk::{glib, prelude::*};
 use std::{
@@ -60,6 +67,30 @@ fn valid_id(s: &str) -> bool {
             .all(|c| c.is_ascii_alphanumeric() || b"@._+-/".contains(&c))
 }
 fn search(query: &str, source: &str) -> Result<Vec<Package>, String> {
+    let terms = task_search::terms(query);
+    let mut results = vec![];
+    let mut errors = vec![];
+    for term in terms {
+        match search_exact(&term, source) {
+            Ok(packages) => {
+                for p in packages {
+                    if !results.iter().any(|r: &Package| {
+                        r.source == p.source && r.name == p.name && r.remote == p.remote
+                    }) {
+                        results.push(p);
+                    }
+                }
+            }
+            Err(e) => errors.push(e),
+        }
+    }
+    if results.is_empty() && !errors.is_empty() {
+        Err(errors.join("; "))
+    } else {
+        Ok(results)
+    }
+}
+fn search_exact(query: &str, source: &str) -> Result<Vec<Package>, String> {
     match source {
         "Pacman" => {
             // Search literal terms, rather than exposing pacman's regex syntax.
@@ -279,7 +310,7 @@ fn terminal(args: Vec<String>) -> Result<(), String> {
     Ok(())
 }
 const SYSTEM_UPDATE_SCRIPT: &str = include_str!("../scripts/system-update.sh");
-fn system_update() -> Result<(), String> {
+fn system_update(snapshot: &str) -> Result<(), String> {
     if !available("pacman") || !available("sudo") || !available("flock") {
         return Err("System updates require pacman, sudo, and flock (util-linux).".into());
     }
@@ -293,6 +324,7 @@ fn system_update() -> Result<(), String> {
         SYSTEM_UPDATE_SCRIPT.into(),
         "archeasy-system-update".into(),
         helper.into(),
+        snapshot.into(),
     ])
 }
 fn install(p: &Package) -> Result<(), String> {
@@ -331,6 +363,14 @@ fn main() -> glib::ExitCode {
 }
 const THEME_CSS: &str = r#"
 window.archeasy { background: @theme_bg_color; color: @theme_fg_color; }
+.archeasy label { color: inherit; }
+.archeasy headerbar { background: transparent; color: inherit; }
+.archeasy .about-close { font-size: 22px; min-width: 24px; padding: 2px 10px; }
+.archeasy list { background: transparent; color: inherit; }
+.archeasy row { background: transparent; color: inherit; }
+.archeasy row:hover { background: alpha(@theme_fg_color, 0.06); }
+.archeasy row:selected { background: #55cbb6; color: #09251f; }
+.archeasy row:selected label { color: inherit; }
 .archeasy .title { font-size: 32px; font-weight: 800; }
 .archeasy .subtitle { opacity: 0.8; }
 .archeasy .card { background: alpha(@theme_fg_color, 0.06); border-radius: 14px; padding: 18px; }
@@ -423,7 +463,7 @@ fn custom_theme_path() -> std::path::PathBuf {
 }
 fn build_ui(app: &gtk::Application) {
     let css = gtk::CssProvider::new();
-    css.load_from_data(THEME_CSS);
+    css.load_from_data(&format!("{THEME_CSS}\n{}", appcleaner::css()));
     gtk::style_context_add_provider_for_display(
         &gtk::gdk::Display::default().expect("Desktop display required"),
         &css,
@@ -468,7 +508,23 @@ fn build_ui(app: &gtk::Application) {
     update.set_tooltip_text(Some(
         "Update Pacman, AUR, and user/system Flatpaks. Review and confirm prompts in the terminal.",
     ));
-    top.append(&update);
+
+    let setup_arch = gtk::Button::with_label("Setup ArchEasy");
+    setup_arch.set_widget_name("setup-archeasy");
+    setup_arch.set_tooltip_text(Some(
+        "Upgrade Arch, install paru if missing, install Flatpak and add Flathub for your account.",
+    ));
+    setup_arch.connect_clicked(move |_| {
+        if let Err(e) = terminal(vec![
+            "/usr/bin/bash".into(),
+            "-c".into(),
+            include_str!("../scripts/first-run.sh").into(),
+            "archeasy-first-run".into(),
+        ]) {
+            show_error(&e);
+        }
+    });
+
     top.append(&label("Theme", "subtitle"));
     let theme = gtk::DropDown::from_strings(&["System", "Light", "Dark", "Custom"]);
     theme.set_widget_name("archeasy-theme");
@@ -535,29 +591,29 @@ fn build_ui(app: &gtk::Application) {
     top.append(&appearance::install_sound(&win));
     let about = gtk::Button::with_label("About");
     about.set_valign(gtk::Align::Center);
-    let dialog = gtk::AboutDialog::builder()
-        .transient_for(&win)
-        .modal(true)
-        .hide_on_close(true)
-        .program_name("ArchEasy")
-        .version(env!("CARGO_PKG_VERSION"))
-        .logo_icon_name("system-software-install")
-        .comments("A beginner-friendly software browser for Arch Linux.\n\nSearch Pacman, AUR, and Flatpak in one place. Open package pages and start installations with your usual package manager.\n\nPacman installations include system updates. AUR requires paru or yay; review community build scripts before installing. Password and confirmation prompts appear in your terminal.\n\nBuilt with Rust and GTK4.")
-        .build();
+    about.set_widget_name("archeasy-about");
+    let dialog = about::window(
+        &win,
+        "ArchEasy",
+        "system-software-install",
+        "A beginner-friendly software browser for Arch Linux.\n\nSearch Pacman, AUR, and Flatpak in one place. Open package pages and start installations with your usual package manager.\n\nPacman installations include system updates. Review community AUR build scripts before installing. Password and confirmation prompts appear in your terminal.\n\nBuilt with Rust and GTK4.",
+    );
     about.connect_clicked(move |_| dialog.present());
     top.append(&about);
     root.append(&top);
+    let maintenance = gtk::Box::new(gtk::Orientation::Horizontal, 8);
+    maintenance.append(&setup_arch);
+    maintenance.append(&update);
+    snapshots::button(&maintenance, &win);
+    root.append(&maintenance);
     let update_status = label("", "subtitle");
     update_status.set_wrap(true);
     update_status.set_visible(false);
     root.append(&update_status);
+    let weak = win.downgrade();
     update.connect_clicked(move |_| {
-        match system_update() {
-            Ok(()) => {
-                update_status.set_text("Update terminal requested. Enter your password and review each step there. The terminal shows the final summary.");
-                update_status.set_visible(true);
-            },
-            Err(error) => show_error(&error),
+        if let Some(window) = weak.upgrade() {
+            system_tools::update_dialog(&window, &update_status);
         }
     });
     root.append(&label(
@@ -569,6 +625,7 @@ fn build_ui(app: &gtk::Application) {
     let stack = gtk::Stack::builder().vexpand(true).build();
     stack.set_widget_name("archeasy-tabs");
     stack.add_titled(&software, Some("software"), "Software");
+    stack.add_titled(&store::installed_page(), Some("installed"), "Installed");
     stack.add_titled(&configs::page(&win), Some("configs"), "Configs");
     let cleaner = gtk::Box::new(gtk::Orientation::Vertical, 0);
     stack.add_titled(&cleaner, Some("appcleaner"), "AppCleaner");
@@ -592,6 +649,12 @@ fn build_ui(app: &gtk::Application) {
             cloud.append(&cloud::page(&window));
         }
     });
+    stack.add_titled(&system_tools::page(&win), Some("system"), "System");
+    stack.add_titled(
+        &flatpak_permissions::page(&win),
+        Some("permissions"),
+        "Permissions",
+    );
     let navigation = gtk::StackSwitcher::builder()
         .stack(&stack)
         .halign(gtk::Align::Start)
@@ -600,7 +663,7 @@ fn build_ui(app: &gtk::Application) {
     root.append(&stack);
     let bar = gtk::Box::new(gtk::Orientation::Horizontal, 10);
     let entry = gtk::Entry::builder()
-        .placeholder_text("Search apps and packages, e.g. firefox or vlc")
+        .placeholder_text("Search apps or tasks, e.g. video editor like Premiere")
         .hexpand(true)
         .build();
     let filter = gtk::DropDown::from_strings(&["All sources", "Pacman", "AUR", "Flatpak"]);
@@ -622,6 +685,7 @@ fn build_ui(app: &gtk::Application) {
     );
     status.set_wrap(true);
     software.append(&status);
+    let (queue, queue_run) = store::queue_bar(&software, &status);
     let list = gtk::Box::new(gtk::Orientation::Vertical, 10);
     let scroll = gtk::ScrolledWindow::builder()
         .vexpand(true)
@@ -635,24 +699,18 @@ fn build_ui(app: &gtk::Application) {
     );
     footer.set_wrap(true);
     software.append(&footer);
-    let setup = gtk::Button::with_label("Set up Flathub for my account");
+    let setup = gtk::Button::with_label("Setup ArchEasy · paru + Flathub + package database");
     setup.set_halign(gtk::Align::Start);
     let s = status.clone();
     setup.connect_clicked(move |_| {
-        let r = terminal(
-            [
-                "flatpak",
-                "remote-add",
-                "--user",
-                "--if-not-exists",
-                "flathub",
-                "https://flathub.org/repo/flathub.flatpakrepo",
-            ]
-            .map(String::from)
-            .to_vec(),
-        );
+        let r = terminal(vec![
+            "/usr/bin/bash".into(),
+            "-c".into(),
+            include_str!("../scripts/first-run.sh").into(),
+            "archeasy-first-run".into(),
+        ]);
         s.set_text(&r.err().unwrap_or(
-            "Flathub setup opened in your terminal. Search again when it finishes.".into(),
+            "ArchEasy setup opened in your terminal. Search again when it finishes.".into(),
         ));
     });
     software.append(&setup);
@@ -678,6 +736,7 @@ fn build_ui(app: &gtk::Application) {
             let _ = tx.send((packages, errors));
         });
         let l = l.clone(); let s = s.clone(); let b = b.clone();
+        let queue = queue.clone(); let queue_run = queue_run.clone();
         glib::timeout_add_local(Duration::from_millis(100), move || {
             let Ok((packages, errors)) = rx.try_recv() else { return glib::ControlFlow::Continue; };
             b.set_sensitive(true); let count = packages.len();
@@ -694,6 +753,8 @@ fn build_ui(app: &gtk::Application) {
                     page.set_tooltip_text(Some(&url));
                     row.append(&page);
                 }
+                row.append(&store::checkbox(&p, &queue, &queue_run));
+                if p.source == "Flatpak" { let permissions = gtk::Button::with_label("Permissions"); let id = p.name.clone(); let scope = "--user"; permissions.connect_clicked(move |_| flatpak_permissions::open(&id, scope)); row.append(&permissions); }
                 let install_button = gtk::Button::with_label(if p.installed { "Installed ✓" } else { "Install" }); install_button.set_valign(gtk::Align::Center); install_button.set_sensitive(!p.installed); install_button.add_css_class("suggested-action");
                 let s = s.clone(); install_button.connect_clicked(move |button| { match install(&p) { Ok(()) => { button.set_sensitive(false); button.set_label("Check terminal"); s.set_text(&format!("Installation requested for {}. Enter your password and confirm in the terminal. Search again when finished.", p.name)); }, Err(e) => { s.set_text(&e); show_error(&e); } } });
                 row.append(&install_button); l.append(&row);

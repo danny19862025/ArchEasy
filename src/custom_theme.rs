@@ -105,6 +105,8 @@ window.archeasy.custom {{ background: {bg}; color: {text}; }}
 .archeasy.custom entry:focus-within {{ outline-color: {accent}; }}
 .archeasy.custom .suggested-action {{ background: {accent}; color: {ink}; }}
 .archeasy.custom .suggested-action label {{ color: {ink}; }}
+.archeasy.custom row:selected {{ background: {accent}; color: {ink}; }}
+.archeasy.custom row:selected label {{ color: {ink}; }}
 .archeasy.custom .opening-title {{ color: #f0f7ff; }}
 .archeasy.custom .opening-subtitle {{ color: #9cc8e3; }}
 "#

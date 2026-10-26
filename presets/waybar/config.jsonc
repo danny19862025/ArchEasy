@@ -1,0 +1,1 @@
+{"layer":"top","position":"top","height":32,"modules-left":["hyprland/workspaces"],"modules-center":["clock"],"modules-right":["pulseaudio","network","battery"],"clock":{"format":"{:%a %d %b  %H:%M}"},"network":{"format-wifi":"Wi-Fi {essid}","format-ethernet":"Ethernet","format-disconnected":"Offline"}}

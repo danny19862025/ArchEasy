@@ -1,0 +1,12 @@
+[
+ {"phrases":["video editor","premiere","edit videos"],"packages":["kdenlive","shotcut","davinci-resolve"]},
+ {"phrases":["photo editor","photoshop","edit photos"],"packages":["gimp","krita"]},
+ {"phrases":["code editor","coding editor","text editor"],"packages":["neovim","code","kate"]},
+ {"phrases":["music player","listen to music"],"packages":["elisa","vlc","spotify"]},
+ {"phrases":["office","word processor","spreadsheets","microsoft word"],"packages":["libreoffice-fresh","onlyoffice-bin"]},
+ {"phrases":["screen recorder","record screen","streaming"],"packages":["obs-studio","gpu-screen-recorder"]},
+ {"phrases":["web browser","browse internet"],"packages":["firefox","chromium"]},
+ {"phrases":["discord","voice chat"],"packages":["discord","vesktop"]},
+ {"phrases":["backup files","sync files"],"packages":["rclone","syncthing"]},
+ {"phrases":["windows games","play games","gaming"],"packages":["steam","lutris","wine"]}
+]

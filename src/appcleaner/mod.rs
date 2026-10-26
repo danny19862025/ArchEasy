@@ -1,7 +1,6 @@
 mod core;
 #[cfg(test)]
 mod tests;
-mod theme;
 use core::{App, Candidate, Roots};
 use gtk::{glib, prelude::*};
 use std::{
@@ -15,7 +14,11 @@ fn label(text: &str, class: &str) -> gtk::Label {
     l.set_xalign(0.0);
     l.set_wrap(true);
     if !class.is_empty() {
-        l.add_css_class(class);
+        l.add_css_class(match class {
+            "muted" => "subtitle",
+            "eyebrow" => "badge",
+            other => other,
+        });
     }
     l
 }
@@ -26,25 +29,14 @@ pub fn page(window: &gtk::ApplicationWindow) -> gtk::Box {
 #[allow(deprecated)]
 fn page_with_roots(window: &gtk::ApplicationWindow, roots: Roots) -> gtk::Box {
     let apps = Rc::new(core::discover(&roots));
-    let css = gtk::CssProvider::new();
-    let theme_path = glib::user_config_dir().join("archeasy/appcleaner-theme");
-    let active_theme = theme::Theme::load(&if theme_path.exists() {
-        theme_path.clone()
-    } else {
-        glib::user_config_dir().join("appcleaner/theme")
-    });
-    active_theme.apply(&css);
-    gtk::style_context_add_provider_for_display(
-        &WidgetExt::display(window),
-        &css,
-        gtk::STYLE_PROVIDER_PRIORITY_APPLICATION,
-    );
     let layout = gtk::Box::new(gtk::Orientation::Horizontal, 0);
     layout.add_css_class("appcleaner-page");
+    layout.set_widget_name("cleaner-page");
     layout.set_vexpand(true);
     layout.set_hexpand(true);
     let sidebar = gtk::Box::new(gtk::Orientation::Vertical, 16);
     sidebar.add_css_class("sidebar");
+    sidebar.add_css_class("card");
     sidebar.set_hexpand(false);
     sidebar.set_width_request(250);
     sidebar.append(&label("◈  AppCleaner", "heading"));
@@ -64,73 +56,15 @@ fn page_with_roots(window: &gtk::ApplicationWindow, roots: Roots) -> gtk::Box {
         .child(&list)
         .build();
     sidebar.append(&scroll);
-    let theme_row = gtk::Box::new(gtk::Orientation::Horizontal, 12);
-    let theme_label = label("Theme", "muted");
-    theme_row.append(&theme_label);
-    let theme_picker = gtk::ComboBoxText::new();
-    for (id, title) in [
-        ("cyan", "Cyan"),
-        ("dark", "Dark"),
-        ("light", "Light"),
-        ("custom", "Custom"),
-    ] {
-        theme_picker.append(Some(id), title);
-    }
-    theme_picker.set_hexpand(true);
-    theme_picker.set_active_id(Some(active_theme.id()));
-    theme_label.set_mnemonic_widget(Some(&theme_picker));
-    theme_row.append(&theme_picker);
-    sidebar.append(&theme_row);
-    let customize = gtk::Button::with_label("Customize theme");
-    customize.set_widget_name("cleaner-customize-theme");
-    sidebar.append(&customize);
-    let weak_window = window.downgrade();
-    let weak_picker = theme_picker.downgrade();
-    let custom_css = css.clone();
-    customize.connect_clicked(move |_| {
-        let Some(window) = weak_window.upgrade() else {
-            return;
-        };
-        let picker = weak_picker.clone();
-        let css = custom_css.clone();
-        crate::custom_theme::editor(
-            &window,
-            "Customize AppCleaner theme",
-            theme::Theme::custom_path(),
-            move |_| {
-                theme::Theme::Custom.apply(&css);
-                if let Some(picker) = picker.upgrade() {
-                    picker.set_active_id(Some("custom"));
-                }
-            },
-        );
-    });
-    let theme_error = label("", "muted");
-    theme_error.set_visible(false);
-    sidebar.append(&theme_error);
-    theme_picker.connect_changed(move |picker| {
-        let Some(id) = picker.active_id() else { return };
-        let theme = theme::Theme::from_id(&id);
-        theme.apply(&css);
-        match theme.save(&theme_path) {
-            Ok(()) => theme_error.set_visible(false),
-            Err(error) => {
-                theme_error.set_text("Theme changed, but could not be saved.");
-                theme_error.set_tooltip_text(Some(&error.to_string()));
-                theme_error.set_visible(true);
-            }
-        }
-    });
     let about_button = gtk::Button::with_label("About AppCleaner");
     sidebar.append(&about_button);
-    let about = gtk::AboutDialog::builder()
-        .transient_for(window)
-        .modal(true)
-        .program_name("AppCleaner")
-        .version(env!("CARGO_PKG_VERSION"))
-        .comments("Review and safely clean Linux application data. Built into ArchEasy.")
-        .logo_icon_name("edit-clear-all")
-        .build();
+    about_button.set_widget_name("cleaner-about");
+    let about = crate::about::window(
+        window,
+        "AppCleaner",
+        "edit-clear-all",
+        "Review and safely clean Linux application data. Built into ArchEasy.\n\nInspect application settings, cache and data before moving selected files to Trash. Restore files through your file manager.",
+    );
     about_button.connect_clicked(move |_| about.present());
     for a in apps.iter() {
         let row = gtk::Box::new(gtk::Orientation::Horizontal, 10);
@@ -193,6 +127,12 @@ fn page_with_roots(window: &gtk::ApplicationWindow, roots: Roots) -> gtk::Box {
     content.append(&command);
     let copy = gtk::Button::with_label("Copy uninstall command");
     copy.set_sensitive(false);
+    let run = gtk::Button::with_label("Run in terminal");
+    run.set_widget_name("cleaner-run-command");
+    run.set_tooltip_text(Some(
+        "Run the displayed uninstall command. Review package and password prompts in the terminal.",
+    ));
+    run.set_sensitive(false);
     let status = label(
         "No files selected. Nothing is removed automatically.",
         "muted",
@@ -203,6 +143,7 @@ fn page_with_roots(window: &gtk::ApplicationWindow, roots: Roots) -> gtk::Box {
     clean.set_sensitive(false);
     let actions = gtk::Box::new(gtk::Orientation::Horizontal, 12);
     actions.append(&copy);
+    actions.append(&run);
     actions.append(&clean);
     content.append(&actions);
     content.append(&status);
@@ -225,6 +166,7 @@ fn page_with_roots(window: &gtk::ApplicationWindow, roots: Roots) -> gtk::Box {
     let clean_select = clean.clone();
     let command_select = command.clone();
     let copy_select = copy.clone();
+    let run_select = run.clone();
     let summary_select = summary.clone();
     let status_select = status.clone();
     list.connect_row_selected(move |_, row| {
@@ -250,6 +192,7 @@ fn page_with_roots(window: &gtk::ApplicationWindow, roots: Roots) -> gtk::Box {
         sel.borrow_mut().clear();
         clean_select.set_sensitive(false);
         copy_select.set_sensitive(false);
+        run_select.set_sensitive(false);
         command_select.set_text("");
         let a = a.clone();
         let roots = roots_scan.clone();
@@ -264,6 +207,7 @@ fn page_with_roots(window: &gtk::ApplicationWindow, roots: Roots) -> gtk::Box {
     let clean_poll = clean.clone();
     let status_poll = status.clone();
     let command_poll = command.clone();
+    let run_poll = run.clone();
     let weak_layout = layout.downgrade();
     glib::timeout_add_local(Duration::from_millis(100), move || {
         if weak_layout.upgrade().is_none() {
@@ -291,7 +235,9 @@ fn page_with_roots(window: &gtk::ApplicationWindow, roots: Roots) -> gtk::Box {
                 ));
             }
             command_poll.set_text(&hint);
-            copy.set_sensitive(hint.starts_with("sudo ") || hint.starts_with("flatpak "));
+            let executable = core::uninstall_terminal_args(&hint).is_ok();
+            copy.set_sensitive(executable);
+            run_poll.set_sensitive(executable);
             for candidate in candidates {
                 let card = gtk::Box::new(gtk::Orientation::Vertical, 6);
                 card.add_css_class("card");
@@ -342,6 +288,15 @@ fn page_with_roots(window: &gtk::ApplicationWindow, roots: Roots) -> gtk::Box {
         .unwrap();
     let cmd = command.clone();
     copy_button.connect_clicked(move |b| b.clipboard().set_text(&cmd.text()));
+    let cmd = command.clone();
+    let run_status = status.clone();
+    run.connect_clicked(move |_| {
+        let hint = cmd.text();
+        match core::uninstall_terminal_args(&hint).and_then(crate::terminal) {
+            Ok(()) => run_status.set_text("Uninstall terminal opened. The command remains shown above. Review the package manager's prompts there; file cleanup is separate."),
+            Err(error) => run_status.set_text(&format!("Could not run uninstall command: {error}")),
+        }
+    });
     let win = window.downgrade();
     clean.connect_clicked(move |_| {
         let Some(win) = win.upgrade() else { return; };
@@ -359,4 +314,8 @@ fn page_with_roots(window: &gtk::ApplicationWindow, roots: Roots) -> gtk::Box {
         } d.close(); }); dialog.present();
     });
     layout
+}
+
+pub(super) fn css() -> &'static str {
+    include_str!("layout.css")
 }

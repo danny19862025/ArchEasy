@@ -1,0 +1,4 @@
+configuration { modi: "drun,run,window"; show-icons: true; }
+@theme "Arc-Dark"
+window { width: 540px; border: 2px; border-color: #33ccff; border-radius: 15px; }
+element selected { background-color: #33ccff; text-color: #121826; }

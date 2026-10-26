@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="500" viewBox="0 0 960 500">
+<defs><linearGradient id="border"><stop stop-color="#33ccff"/><stop offset="1" stop-color="#ff99c8"/></linearGradient><linearGradient id="bg" x2="1" y2="1"><stop stop-color="#182336"/><stop offset="1" stop-color="#252039"/></linearGradient></defs>
+<rect width="960" height="500" rx="18" fill="url(#bg)"/>
+<text x="28" y="35" fill="#a9b1d6" font-family="sans-serif" font-size="14">HYPRLAND  ·  PRESET ILLUSTRATION</text>
+<text x="710" y="35" fill="#a9b1d6" font-family="sans-serif" font-size="14">5px inner · 15px outer gaps</text>
+<rect x="20" y="55" width="565" height="423" rx="15" fill="#101521" stroke="url(#border)" stroke-width="3"/>
+<rect x="597" y="55" width="343" height="205" rx="15" fill="#161b29" stroke="#595959" stroke-width="2"/>
+<rect x="597" y="272" width="343" height="206" rx="15" fill="#161b29" stroke="#595959" stroke-width="2"/>
+<g font-family="monospace" font-size="19" fill="#c0caf5">
+<text x="42" y="91" fill="#7aa2f7">Ghostty · TokyoNight Moon</text>
+<text x="42" y="142" fill="#9ece6a">danny@arch ~</text><text x="42" y="173">❯ fastfetch</text>
+<text x="70" y="233" fill="#33ccff">       /\</text><text x="70" y="260" fill="#33ccff">      /  \</text><text x="70" y="287" fill="#33ccff">     / /\ \</text><text x="70" y="314" fill="#33ccff">    /_/  \_\</text>
+<text x="300" y="236">OS      Arch Linux</text><text x="300" y="269">WM      Hyprland</text><text x="300" y="302">Shell   Fish</text><text x="42" y="408" fill="#ff99c8">2px gradient border · 15px rounding</text>
+<text x="619" y="93" fill="#7aa2f7">Files</text><text x="619" y="136">Documents   Downloads</text><text x="619" y="173">Pictures    Projects</text>
+<text x="619" y="310" fill="#ff99c8">Shortcuts</text><text x="619" y="352">Super + Q    Terminal</text><text x="619" y="385">Super + R    Launcher</text><text x="619" y="418">Super + 1–0  Workspace</text>
+</g></svg>

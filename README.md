@@ -14,7 +14,7 @@ On opening, the Arch logo scales and fades in with blue light rings and the Arch
 cargo run --release
 ```
 
-Requires GTK4 (4.10+), Rust, pacman, curl, and a supported terminal (Konsole, Kitty, GNOME Terminal, Xfce Terminal, or xterm). Flatpak search requires Flatpak and configured remotes. The Flathub setup button adds the official remote to your user account. AUR installs require an existing `paru` or `yay` helper; ArchEasy never runs an AUR build as root.
+Requires GTK4 (4.10+), Rust, pacman, curl, and a supported terminal (Konsole, Kitty, GNOME Terminal, Xfce Terminal, or xterm). Flatpak search requires Flatpak and configured remotes. **Setup ArchEasy** upgrades Arch and refreshes its package database, installs Flatpak/build tools/Python, builds paru if missing as your desktop user after PKGBUILD review, and adds Flathub for your account. Requires sudo access and a working Arch mirror configuration. [Paru installation](https://github.com/Morganamilo/paru#installation), [Flatpak remotes](https://docs.flatpak.org/en/latest/using-flatpak.html).
 
 The Install button opens an interactive terminal. Passwords, transaction confirmation, dependency choices, and AUR build review remain in the package manager. Pacman uses `sudo pacman -Syu --needed` so installation can also update the system. Flatpak installation uses your user account. Each result has a link beside Install: **Arch package** opens the official Arch package listing filtered to that exact package name, **AUR page** opens its AUR page and build files, and Flathub results have a **Flathub page** link. Links remain available for installed packages. Close an installation terminal only after its transaction finishes. Search again afterward to refresh installed status.
 
@@ -22,7 +22,7 @@ Search errors appear above the results. Install errors appear in a dialog. If a 
 
 ## System updates
 
-The top-bar **System update** button opens a terminal and runs:
+The top-bar **System update** button first offers a Timeshift or Snapper snapshot when installed, or an update without a snapshot. Configure the snapshot tool beforehand; Snapper uses its `root` configuration. A requested snapshot failure stops the update. The terminal then runs:
 
 1. `sudo pacman -Syu` for official packages.
 2. `paru -Sua` or `yay -Sua` for AUR packages only.
@@ -33,9 +33,11 @@ Review the usual password, package, and build prompts in that terminal. No confi
 
 ## AppCleaner
 
-The **AppCleaner** tab beside **Configs** includes the standalone AppCleaner's functions: installed application discovery and search, background scans of matching settings/cache/data folders, folder sizes and partial-scan indicators, individual folder selection, a confirmation listing exact paths, and moving selected items to the desktop Trash. Restore items through your file manager's Trash. Package uninstall commands can be copied for separate review and execution; cleanup does not uninstall packages.
+The **AppCleaner** tab beside **Configs** includes the standalone AppCleaner's functions: installed application discovery and search, background scans of matching settings/cache/data folders, folder sizes and partial-scan indicators, individual folder selection, a confirmation listing exact paths, and moving selected items to the desktop Trash. Restore items through your file manager's Trash. **Run in terminal** executes the displayed uninstall command with normal password and package-manager confirmation prompts. The command remains visible and can still be copied. Only supported, validated uninstall commands can run; file cleanup stays separate from package removal.
 
-AppCleaner includes Cyan, Dark, Light, and Custom themes, saved separately and applied only inside its tab, plus About AppCleaner. Its **Customize theme** button opens the same six-colour editor; its custom palette is stored independently in `~/.config/archeasy/appcleaner-custom-theme.json`. Its first theme uses your standalone AppCleaner preference if available. Discovery starts on first opening the tab. Matches use exact desktop IDs/names; shared folders, top-level symlinks, and folders outside your home roots are excluded. No folders are selected automatically. Close the target app and review every path before cleanup, because application data can contain personal files. Trash failures are reported without permanent deletion.
+AppCleaner follows ArchEasy’s **System, Light, Dark, or Custom** appearance immediately. Its sidebar and controls use the shared GTK colours, and **Colours…** edits the one custom palette for the whole app. AppCleaner has no separate theme selector or palette; old standalone/embedded AppCleaner theme preferences are ignored.
+
+Discovery starts on first opening the tab. Matches use exact desktop IDs/names; shared folders, top-level symlinks, and folders outside your home roots are excluded. Nothing is selected automatically. Close the target app and review paths before cleanup. Trash failures are reported without permanent deletion.
 
 The embedded AppCleaner code's MIT license is included in `assets/AppCleaner-LICENSE`.
 
@@ -53,48 +55,95 @@ Validation uses a temporary local rclone alias remote for upload/list/download a
 
 References: [rclone account setup](https://rclone.org/commands/rclone_config_create/), [copy](https://rclone.org/commands/rclone_copy/), [listing](https://rclone.org/commands/rclone_lsjson/).
 
+## Portable snapshots and file backups
+
+Click **Snapshots & backups…** at the top of the main window, beside **System update** (also available in **System**). Click **How to create, transfer & restore a backup…** inside that dialog for the full step-by-step guide. Leave **Include installed app lists…** enabled to create a migration ZIP with the existing `my-system.sh` installer and managed configs. Tick the files/folders to include, or use **Add files… / Add folder…**. For a files-only backup, untick the app option. Save the ZIP outside all selected folders. Nothing is selected or backed up automatically.
+
+For local/custom apps, include their project folders, `.local/bin`, desktop launchers and app data. The suggested paths include Projects, Documents, Pictures, Desktop, `.config`, `.local/share` and Flatpak user data (`.var/app`). Package-managed apps reinstall from current repositories; unavailable or vendor packages need their original sources. This is a portable app/file selection, not a disk image or an exact-version system clone.
+
+Backups are private ZIP files (mode 0600) with a dated manifest, SHA-256 checksums, `home/` file contents, restore instructions and a standalone Python helper. Empty folders and ordinary file permissions are retained. Overlapping selections are deduplicated. Linked selections are rejected; nested links and special files are skipped and counted. Limits: 20 GiB and 200,000 entries. Files changing during copy abort the backup. Close apps before capture. The ZIP can contain credentials and is not encrypted; store it privately.
+
+**Verify & unpack backup…** checks a snapshot and extracts into a new, uniquely named folder inside your chosen destination. Existing live files stay untouched. Review `home/` before copying desired files into your home. On another Arch computer, review and run `bash /path/to/unpacked/my-system.sh` to reinstall packaged apps and restore managed configs using the installer's rollback backups. Custom programs may require rebuilding or their original dependencies.
+
+Without ArchEasy, extract only `restore-snapshot.py` from the ZIP, review it, then run:
+
+```sh
+python3 restore-snapshot.py restore /path/to/snapshot.zip /path/to/NEW_FOLDER
+```
+
+The destination must not exist. Unpacking validates paths, checksums and limits and never runs the included app installer. A failed unpack may leave an incomplete output folder for inspection. Keep ArchEasy open until a running backup or unpack finishes.
+
+## Store queue and installed packages
+
+Tick **Queue** beside search results, including results from different searches, then **Install queue**. One terminal installs packages in the selected order and stops on failure. Earlier completed installs are kept. Pacman refreshes and upgrades the system with the first official package; subsequent official packages use the refreshed database. AUR packages use paru/yay and retain build review prompts. **Clear queue** clears selections; tick a result again to re-add it.
+
+The **Installed** tab lists all explicitly installed Pacman packages (including AUR packages), supports filtering, and has **Remove** buttons. Removal uses `sudo pacman -R` with the normal confirmation and dependency checks. Refresh after a transaction to update the list.
+
 ## Personal configs
 
-The **Configs** tab contains seven presets based on `Projects/python/notes_configs/nix_os_config`: Fastfetch ASCII, Fastfetch image, Fish, Starship, Ghostty, Kitty, and Hyprland. Supporting images, Fish functions/colors, and Kitty theme are taken from your current config/dotfiles where the notes reference external assets. See [preset sources](presets/README.md) for the exact adaptations.
+The **Configs** tab includes Fastfetch ASCII/image, Fish, Starship, Ghostty, Kitty, Hyprland, and starter presets for Neovim, Tmux, Waybar, Rofi, Wofi and btop. Original preset sources are documented in [presets/README.md](presets/README.md).
 
-- **View config** shows files and customization instructions before applying.
-- **Diff, apply & show** previews current/proposed files side by side, highlights changed lines, checks the files have not changed since review, backs up everything, then applies. Fish uses **Set up Fish** and the terminal flow below. Missing dependencies can be installed with **Install app**.
-- **Show result** previews the currently installed configuration.
-- **Restore backup** restores the latest un-restored backup for that app, including removing files introduced by the preset. Both Fastfetch variants share the same backup history.
+Every built-in preset has **Install & Apply**. First review current/proposed files in two columns, with changed lines highlighted. Confirming saves a private, complete backup directory and ZIP before opening one setup terminal. That terminal installs missing dependencies with `sudo pacman -Syu --needed`, applies the reviewed configs, and optionally changes the login shell for Fish/full setup. The Fish checkbox is off by default. Installation failure prevents application; configs changed since review require another diff. Setup terminals use a per-user lock. **Show result** opens the app or gives session instructions. Nothing applies at startup.
 
-Configs go under `$XDG_CONFIG_HOME` (normally `~/.config`). Backups are under `$XDG_DATA_HOME/archeasy/backups` (normally `~/.local/share/archeasy/backups`). Only the listed files change. A linked config file is backed up as a symlink and replaced locally; linked parent directories are refused to avoid modifying another config manager's files. Existing files are saved before atomic replacement; backups are private. Individual config applies preserve the login shell. Fish/stack setup can install dependencies and change the login shell only with the options you select in its review dialog. It never activates NixOS settings.
+**Danny’s Full Setup** combines Fish, Starship, Ghostty, Kitty, Fastfetch ASCII and Hyprland with its companion tools. Starship is enabled in Fish through a guarded conf.d file. One ZIP covers the entire before-state before any package installation starts. **Restore stack backup** reverses config changes including introduced files; installed packages and login shell are unchanged.
 
-No config is applied automatically when ArchEasy starts.
+Configs live under `$XDG_CONFIG_HOME` (`~/.config`); backups under `$XDG_DATA_HOME/archeasy/backups` (`~/.local/share/archeasy/backups`). File replacements are atomic, backups are private, linked parents require explicit conflict resolution, and local **Restore backup** preserves original file permissions and symlinks. Python 3 is required for ZIP creation; **Setup ArchEasy** installs it.
 
-### Fish and terminal stack
+**Add screenshot…** saves a scaled, private PNG preview on each preset card. Hyprland includes a clearly labeled illustration of its gaps, rounding and blue/pink borders until you add your actual desktop screenshot. Previews stay local.
 
-Each card has a green **Dependencies met** badge or a yellow list of missing apps. **Refresh dependencies** rechecks installed commands after an installation. The Fish card checks Fish and Starship. **Install app** installs missing dependencies through the usual interactive Pacman terminal.
+### Sharing and importing
 
-**Set up Fish** opens a side-by-side diff before any writes. Keep **Install missing dependencies first** checked to install missing apps using `sudo pacman -Syu --needed` (includes Arch system updates). Optionally check **Make Fish my default login shell after applying**; it is off by default. One terminal checks/installs dependencies, calls ArchEasy's non-GUI apply helper, optionally runs `chsh -s /usr/bin/fish`, then holds the final summary. Passwords remain in the terminal. Installation failure prevents config application. Apply failure skips the shell change. A failed/cancelled shell change keeps the applied configs and their backup. Shell changes take effect at the next login; no logout is forced. A separate **Make Fish default** button is enabled after a Fish/stack apply and installation.
+**Import current config…** saves a named local preset from a regular UTF-8 file under your config folder, up to 1 MiB. It leaves the source unchanged.
 
-**Terminal setup · Apply all** combines Fish, Starship, Ghostty, and the Fastfetch ASCII preset, including a guarded Fish `conf.d/archeasy-starship.fish` integration file. One complete backup is captured before any config file is written. **Restore stack backup** restores all files in that snapshot, including removing introduced files; it does not uninstall packages or change the login shell. Reviews are refused if current configs changed while dependencies were being installed. Setup sessions use a per-user lock to avoid simultaneous setup terminals.
+**Export to GitHub** reviews file contents before **Publish preset**. Leave the repository field empty to create a secret/unlisted Gist, or enter an existing `owner/repo` to commit a new `archeasy/<preset>-<timestamp>.json` file on its default branch. Repository visibility controls access; the public checkbox applies only to Gists. Use **GitHub sign-in** or install GitHub CLI from the dialog. GitHub CLI handles authentication; repository exports need write access. Binary Gist assets are base64 encoded with a manifest. Export staging is removed when the command completes. Unlisted Gists can be read by anyone with the URL.
 
-### Custom presets and Gist export
+**Import Gist / Repo URL…** accepts an ArchEasy Gist URL or a GitHub blob URL for an exported JSON preset. GitHub CLI fetches the files, paths and size limits are validated, and a local preset is saved. A diff opens before any application; private sources require GitHub sign-in. Repository import supports branch names without slashes. Imported dependencies are restricted to known app commands and remote content is never executed during import.
 
-**Import current config…** copies an existing UTF-8 config file under `XDG_CONFIG_HOME` into a named local preset under `$XDG_DATA_HOME/archeasy/presets` (`~/.local/share/archeasy/presets`). It leaves the original file unchanged. Imported files are limited to 1 MiB; symlinks and linked parents are refused. Presets are private (700 directories, 600 JSON files). Imported cards support diff/apply, backup restore, and Gist export.
+### Backup ZIP transfer
 
-**Export to Gist** opens a full content review before publishing. Use **GitHub sign-in** in that dialog to authorize GitHub CLI through the browser. A user-local official GitHub CLI can be used from `~/.local/bin/gh`; **Install GitHub CLI** offers the Arch package if needed. Publishing requires the explicit **Publish Gist** action. Default visibility is secret/unlisted; checking **Publish publicly** adds `--public`. Secret Gists are accessible to anyone with the URL: review passwords, tokens, and private data before publishing. Credentials are handled by GitHub CLI, not entered into ArchEasy. The completed URL can be copied from the dialog. Binary assets are base64-encoded with a manifest mapping files back to config paths. Temporary export files are removed after the CLI returns.
+**Export backups ZIP…** includes all backup history plus the current managed config files referenced by that history. **Save backups to Drive…** creates the same ZIP and uploads it into `ArchEasy/Backups` through an rclone connection; configure Google Drive in **Cloud Backup** first. Upload failures retain the local ZIP for retry.
+
+On a new PC, download the ZIP and select **Restore from ZIP…**. It opens the current managed configs in the diff and saves a local rollback snapshot before applying. Historical before-states remain in the ZIP’s `history/` folder. Portable transfer excludes symlinks, and restoration never extracts arbitrary ZIP paths. ZIP export refuses existing destinations and limits history to 512 MiB/100,000 files and portable configs to 8 MiB/100 files. Close apps before exporting for a consistent snapshot.
 
 ### Hyprland
 
-**Hyprland · Desktop preset** adapts `Projects/dotfiles/dotfiles/hypr/hyprland.conf` to modern `hypr/hyprland.lua` using the [upstream 0.56.2 example](https://github.com/hyprwm/Hyprland/blob/v0.56.2/example/hyprland.lua). It preserves your gaps, rounded corners, blur, blue/pink borders, animations, and core shortcuts. Duplicate shortcuts, external pywal/AGS paths, and hard-coded wallpapers are omitted. Terminal and file-manager commands have installed-program fallbacks. Optional startup commands are guarded.
+The existing Lua preset preserves your 5px inner/15px outer gaps, 15px rounding, blur and blue/pink borders. **Install & Apply** installs the compositor and companion tools, saves the backup and writes `hypr/hyprland.lua`. The setup guide explains shortcuts and login session selection. Active Hyprland sessions may reload immediately. Existing legacy `.conf` files are preserved. Compositor behavior still requires validation in an actual Hyprland session.
 
-Use **Install Hyprland & tools** to start an interactive Pacman installation of the compositor and its companion tools. **Apply config** saves a backup and writes the Lua file; **Setup guide** explains dependencies, shortcuts, and how to choose Hyprland at login. It does not start a nested compositor or log you out. Active Hyprland sessions may automatically reload the new file. Existing legacy `.conf` files are preserved. Hyprland is not installed on this machine, so validation covers Lua syntax, preset structure, shortcuts, and backup/restore; compositor behavior still needs testing in a Hyprland session.
+## Config history and managed folders
+
+Every successful **Apply** saves an applied version in the existing private backup directory. **Config timeline…** lists dated versions with relative ages and opens a diff before restoring one. Restores make another backup and record another version. Older backups appear as **before Apply** entries when they contain regular saved files. Those legacy timeline entries restore saved files; use **Restore backup** for the original full rollback, including removing introduced files or restoring links.
+
+If the config directory itself is the root of a Git repository, ArchEasy creates a commit containing only the applied config paths, using an isolated temporary index. Unrelated staged files stay staged and are excluded from the commit. If any selected config path already has staged changes, automatic commit is skipped and the reason appears in the version entry. No-change applies still get a timeline snapshot. Git failure never discards an applied config or its backup. Repository hooks and signing are not invoked for the automatic commit; your configured identity is used, with an ArchEasy identity fallback. ArchEasy does not initialize repositories or push commits.
+
+For linked parent directories, the conflict resolver offers **Overwrite**, **Merge**, and **Skip** per target file. Overwrite detaches the approved parent link into a local copy while keeping its other files; Merge uses the current text in an editable pane so you can combine it with the proposed preset. Skip leaves that file's contents unchanged. The following diff remains the final review before writes. Source-manager files are not overwritten. **Restore backup** recreates original links and retains detached local trees under `managed-retained` so later local additions are not deleted. Managed folder copying is limited to 512 MiB / 100,000 entries.
+
+## Community preset store
+
+**Community presets…** reads `presets/community.json`, or your override at `~/.config/archeasy/community.json`. The starter catalog includes official Catppuccin Mocha/Latte Kitty themes and the bundled Danny Hyprland preset. Entries can be ArchEasy Gist URLs or objects with `name`, `description`, `url`, and optional GitHub file `target` and `dependencies`. Downloaded files are saved as local presets and reviewed through the same diff, dependency, backup and conflict flows. Kitty themes add an include to the existing Kitty config. Downloads do not execute remote scripts. Catalog curation does not pin upstream revisions; review each download.
+
+## System helpers
+
+The **System** tab detects the running kernel, installed linux/linux-zen/linux-lts/linux-hardened packages, GPU PCI information and known NVIDIA driver packages. It distinguishes DKMS from kernel-specific drivers and checks matching headers for detected DKMS setups. Warnings link to the Arch driver guide; no kernel, driver or boot configuration changes automatically. PCI detection needs `pciutils`.
+
+The **Permissions** tab lists user and system Flatpaks. Choose an app, select **Override** for a permission, and use its allow/deny switch. Only selected per-user overrides are changed. The screen shows app permissions and all system/user override layers. Audio access covers speakers and microphone together; devices access includes cameras. Folder permissions can overlap, and portals retain separate permissions. Restart the app after applying. A **Permissions** button is also available on Flatpak search results; refresh the Permissions tab after installation.
+
+Task-based search uses the local `data/search-keywords.json` mapping. For example, “video editor like Premiere” searches Kdenlive, Shotcut and DaVinci Resolve across the selected package sources. It uses no AI service and sends only mapped search terms to the normal package search sources.
+
+**Export my system · my-system.sh…** in **System** saves a private executable script containing explicit official packages, explicit foreign/AUR packages, user/system Flatpak apps and HTTPS remotes, plus the current files known to ArchEasy's config history. You can publish the applied configs through the existing review dialog and include the resulting Gist URL. Configs are also bundled directly, so the script does not depend on a live Gist. Review the exported file for private config contents. Running it prompts before installation, bootstraps a reviewed paru build if needed, and backs up destination configs before restoring; linked destinations require manual review. This reproduces package/config selections using current repositories, not exact versions, disks, personal files, boot settings or external credentials. Foreign packages unavailable in the AUR need their original installation source.
+
+References: [Timeshift commands](https://man.archlinux.org/man/timeshift.1.en), [Snapper snapshots](https://man.archlinux.org/man/snapper.8.en), [Flatpak overrides](https://docs.flatpak.org/en/latest/flatpak-command-reference.html#flatpak-override), [NVIDIA driver selection](https://wiki.archlinux.org/title/NVIDIA), [Catppuccin Kitty themes](https://github.com/catppuccin/kitty).
 
 ## Verify
 
 ```sh
 cargo test --offline
 cargo clippy --offline -- -D warnings
+python3 tests/setup_store_smoke.py
+python3 tests/snapshot_smoke.py
 luac -p presets/hypr/hyprland.lua
 lua tests/validate-hyprland.lua presets/hypr/hyprland.lua
 ```
 
 References: https://wiki.archlinux.org/title/Pacman , https://wiki.archlinux.org/title/Aurweb_RPC_interface , https://docs.flatpak.org/en/latest/using-flatpak.html
 
-Config workflow references: [GitHub CLI Gist publishing](https://cli.github.com/manual/gh_gist_create), [GitHub sign-in](https://cli.github.com/manual/gh_auth_login), [chsh](https://man.archlinux.org/man/chsh.1).
+Config workflow references: [GitHub repository contents](https://docs.github.com/en/rest/repos/contents), [GitHub CLI Gist publishing](https://cli.github.com/manual/gh_gist_create), [GitHub sign-in](https://cli.github.com/manual/gh_auth_login), [chsh](https://man.archlinux.org/man/chsh.1).

@@ -8,6 +8,7 @@ pub(super) struct Plan {
     pub name: String,
     pub files: Vec<(String, Vec<u8>)>,
     pub dependencies: Vec<String>,
+    pub managed_parents: Vec<(String, String)>,
 }
 impl Plan {
     pub fn builtin(preset: &Preset) -> Self {
@@ -20,21 +21,26 @@ impl Plan {
                 .map(|(n, b)| (n.to_string(), b.to_vec()))
                 .collect(),
             dependencies: dependencies(preset).iter().map(|s| s.to_string()).collect(),
+            managed_parents: vec![],
         }
     }
     pub fn stack() -> Self {
         let mut files = vec![];
-        for index in [2, 3, 4, 0] {
+        for index in [2, 3, 4, 5, 0, 6] {
             files.extend(Self::builtin(&PRESETS[index]).files);
         }
         files.push(("fish/conf.d/archeasy-starship.fish".into(),b"# Starship integration for the terminal stack.\nif status is-interactive; and type -q starship\n    starship init fish | source\nend\n".to_vec()));
         Self {
+            managed_parents: vec![],
             id: "terminal-stack".into(),
-            name: "Terminal setup · Fish + Starship + Ghostty + Fastfetch".into(),
+            name: "Danny’s Full Setup".into(),
             files,
-            dependencies: ["fish", "starship", "ghostty", "fastfetch"]
-                .map(str::to_owned)
-                .into(),
+            dependencies: PRESETS[..7]
+                .iter()
+                .flat_map(|p| dependencies(p).iter().map(|s| s.to_string()))
+                .collect::<BTreeSet<_>>()
+                .into_iter()
+                .collect(),
         }
     }
     pub fn json(&self) -> Value {
@@ -62,6 +68,9 @@ impl Plan {
                 || !Path::new(path)
                     .components()
                     .all(|c| matches!(c, std::path::Component::Normal(_)))
+                || Path::new(path)
+                    .components()
+                    .any(|c| c.as_os_str() == ".git")
                 || !seen.insert(path.to_owned())
             {
                 return Err("Invalid or duplicate preset path".into());
@@ -69,7 +78,7 @@ impl Plan {
             let bytes: Vec<u8> =
                 serde_json::from_value(entry["bytes"].clone()).map_err(|e| e.to_string())?;
             total += bytes.len();
-            if total > 8 * 1024 * 1024 || files.len() > 100 {
+            if total > 8 * 1024 * 1024 || files.len() >= 100 {
                 return Err("Preset exceeds 8 MiB / 100 files".into());
             }
             files.push((path.to_owned(), bytes));
@@ -90,6 +99,22 @@ impl Plan {
                             "fastfetch",
                             "kitty",
                             "Hyprland",
+                            "nvim",
+                            "tmux",
+                            "waybar",
+                            "rofi",
+                            "wofi",
+                            "btop",
+                            "thunar",
+                            "swaync",
+                            "xdg-desktop-portal-hyprland",
+                            "hyprpolkitagent",
+                            "wl-copy",
+                            "cliphist",
+                            "grim",
+                            "slurp",
+                            "wpctl",
+                            "brightnessctl",
                         ]
                         .contains(d)
                     })
@@ -102,12 +127,19 @@ impl Plan {
             name: name.into(),
             files,
             dependencies,
+            managed_parents: vec![],
         })
     }
 }
 pub(super) fn dependencies(preset: &Preset) -> &'static [&'static str] {
     match preset.id {
         "fish" => &["fish", "starship"],
+        "neovim" => &["nvim"],
+        "tmux" => &["tmux"],
+        "waybar" => &["waybar"],
+        "rofi" => &["rofi"],
+        "wofi" => &["wofi"],
+        "btop" => &["btop"],
         "starship" => &["starship"],
         "ghostty" => &["ghostty"],
         "kitty" => &["kitty"],
@@ -159,8 +191,12 @@ fn preflight(root: &Path, name: &str) -> Result<PathBuf, String> {
     }
     Ok(root.join(name))
 }
-fn state(root: &Path, name: &str) -> Result<Value, String> {
-    let path = preflight(root, name)?;
+fn state(root: &Path, name: &str, approved: &[(String, String)]) -> Result<Value, String> {
+    let path = if approved.is_empty() {
+        preflight(root, name)?
+    } else {
+        conflicts::preflight(root, name, approved)?
+    };
     match fs::symlink_metadata(&path) {
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(json!({"kind":"missing"})),
         Err(e) => Err(e.to_string()),
@@ -177,7 +213,10 @@ fn state(root: &Path, name: &str) -> Result<Value, String> {
     }
 }
 pub(super) fn reviewed(plan: &Plan, root: &Path) -> Result<Vec<Value>, String> {
-    plan.files.iter().map(|(n, _)| state(root, n)).collect()
+    plan.files
+        .iter()
+        .map(|(n, _)| state(root, n, &plan.managed_parents))
+        .collect()
 }
 pub(super) fn apply_reviewed(
     plan: &Plan,
@@ -297,6 +336,21 @@ pub(super) fn review_dialog(
     preview: Option<&'static Preset>,
 ) {
     let root = glib::user_config_dir();
+    match conflicts::links(&plan, &root) {
+        Ok(links)
+            if links
+                .iter()
+                .any(|link| !plan.managed_parents.contains(link)) =>
+        {
+            conflicts::dialog(parent, plan, mode, status, refresh, preview);
+            return;
+        }
+        Err(e) => {
+            notice(parent, "Could not inspect config paths", &e);
+            return;
+        }
+        _ => {}
+    }
     let before = match reviewed(&plan, &root) {
         Ok(v) => v,
         Err(e) => {
@@ -312,6 +366,7 @@ pub(super) fn review_dialog(
         .default_width(1000)
         .default_height(650)
         .build();
+    crate::about::follow_theme(parent, dialog.upcast_ref());
     dialog.set_widget_name("config-diff-dialog");
     #[allow(deprecated)]
     {
@@ -355,7 +410,8 @@ pub(super) fn review_dialog(
     let default = gtk::CheckButton::with_label(
         "Make Fish my default login shell after applying (asks for your password in the terminal)",
     );
-    default.set_visible(matches!(mode, Mode::Setup));
+    default
+        .set_visible(matches!(mode, Mode::Setup) && plan.dependencies.iter().any(|d| d == "fish"));
     body.append(&default);
     let weak = parent.downgrade();
     let status = status.clone();
@@ -383,9 +439,10 @@ pub(super) fn review_dialog(
                 match apply_reviewed(&plan, &before, &glib::user_config_dir(), &backups_dir()) {
                     Ok(backup) => {
                         status.set_text(&format!(
-                            "Applied {}. Backup: {}",
+                            "Applied {}. Backup: {}. {}",
                             plan.name,
-                            backup.display()
+                            backup.display(),
+                            history::message(&backup)
                         ));
                         dialog.close();
                         refresh.emit_clicked();
@@ -418,7 +475,11 @@ pub(super) fn start_setup(
     fs::set_permissions(&directory, fs::Permissions::from_mode(0o700))
         .map_err(|e| e.to_string())?;
     let path = directory.join("job.json");
-    let job = json!({"plan":plan.json(),"before":before,"root":glib::user_config_dir()});
+    if reviewed(plan, &glib::user_config_dir())? != before {
+        return Err("Configs changed after the preview. Open the diff again.".into());
+    }
+    let backup = save_backup(plan, &glib::user_config_dir(), &backups_dir())?;
+    let job = json!({"plan":plan.json(),"before":before,"root":glib::user_config_dir(),"backup":backup,"managed_parents":plan.managed_parents});
     write_atomic(&path, job.to_string().as_bytes(), 0o600)?;
     let mut args = vec![
         "/usr/bin/bash".into(),
@@ -435,7 +496,10 @@ pub(super) fn start_setup(
     ];
     args.extend(plan.dependencies.clone());
     super::super::terminal(args)?;
-    status.set_text("Setup terminal opened. Review its password/package prompts; the final summary stays in that terminal.");
+    status.set_text(&format!(
+        "Backup ZIP saved: {}. Setup terminal opened; review its package/password prompts.",
+        backup.with_extension("zip").display()
+    ));
     let weak_status = status.downgrade();
     let weak_refresh = refresh.downgrade();
     glib::timeout_add_local(std::time::Duration::from_millis(500), move || {
@@ -477,11 +541,26 @@ pub(super) fn run_job(path: &Path) -> Result<PathBuf, String> {
     if job["root"].as_str() != glib::user_config_dir().to_str() {
         return Err("Setup job belongs to a different config directory".into());
     }
-    let plan = Plan::parse(&job["plan"])?;
+    let mut plan = Plan::parse(&job["plan"])?;
+    plan.managed_parents =
+        serde_json::from_value(job["managed_parents"].clone()).unwrap_or_default();
     let before = job["before"]
         .as_array()
         .ok_or("Missing reviewed file state")?;
-    let backup = apply_reviewed(&plan, before, &glib::user_config_dir(), &backups_dir())?;
+    if reviewed(&plan, &glib::user_config_dir())? != *before {
+        return Err(
+            "Configs changed after the preview. Open the diff again before applying.".into(),
+        );
+    }
+    let backup = PathBuf::from(job["backup"].as_str().ok_or("Missing pre-setup backup")?);
+    let expected = backups_dir().join(&plan.id);
+    if backup.parent() != Some(expected.as_path())
+        || !backup.with_extension("zip").is_file()
+        || !backup.join("manifest.json").is_file()
+    {
+        return Err("Pre-setup backup is missing or invalid. Open the diff again.".into());
+    }
+    apply_saved(&plan, &glib::user_config_dir(), &backup)?;
     write_atomic(
         &path
             .parent()
@@ -514,7 +593,7 @@ pub(super) fn badge(card: &gtk::Box, dependencies: Vec<String>, refreshers: &Ref
                 badge.add_css_class("deps-met");
             } else {
                 badge.set_text(&format!(
-                    "● Missing: {} · use Install app",
+                    "● Missing: {} · use Install & Apply",
                     missing.join(", ")
                 ));
                 badge.add_css_class("deps-missing");
@@ -533,25 +612,4 @@ pub(super) fn dependency_met(command: &str) -> bool {
             .stderr(std::process::Stdio::null())
             .status()
             .is_ok_and(|status| status.success())
-}
-pub(super) fn install_dependencies(plan: &Plan) -> Result<(), String> {
-    let missing: Vec<_> = plan
-        .dependencies
-        .iter()
-        .filter(|s| !dependency_met(s))
-        .map(|s| match s.as_str() {
-            "Hyprland" => "hyprland".into(),
-            "wl-copy" => "wl-clipboard".into(),
-            "wpctl" => "wireplumber".into(),
-            _ => s.clone(),
-        })
-        .collect();
-    if missing.is_empty() {
-        return Ok(());
-    }
-    let mut args = ["sudo", "pacman", "-Syu", "--needed", "--"]
-        .map(str::to_owned)
-        .to_vec();
-    args.extend(missing);
-    super::super::terminal(args)
 }

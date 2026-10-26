@@ -1,0 +1,24 @@
+[
+  {
+    "id":"catppuccin-mocha-kitty",
+    "name":"Catppuccin Mocha for Kitty",
+    "description":"Official Catppuccin dark palette. Adds an include to your existing Kitty config.",
+    "url":"https://github.com/catppuccin/kitty/blob/main/themes/mocha.conf",
+    "target":"kitty/archeasy-community.conf",
+    "dependencies":["kitty"]
+  },
+  {
+    "id":"catppuccin-latte-kitty",
+    "name":"Catppuccin Latte for Kitty",
+    "description":"Official Catppuccin light palette. Adds an include to your existing Kitty config.",
+    "url":"https://github.com/catppuccin/kitty/blob/main/themes/latte.conf",
+    "target":"kitty/archeasy-community.conf",
+    "dependencies":["kitty"]
+  },
+  {
+    "id":"danny-hyprland",
+    "name":"Danny’s Hyprland desktop",
+    "description":"Bundled desktop preset: rounded windows, gaps, blue/pink borders and companion tools.",
+    "builtin":"hyprland"
+  }
+]

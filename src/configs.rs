@@ -1,3 +1,8 @@
+mod archive;
+mod community;
+mod conflicts;
+mod history;
+mod previews;
 mod sharing;
 mod workflow;
 #[cfg(test)]
@@ -56,7 +61,7 @@ const PRESETS: &[Preset] = &[
         name: "Fish · Interactive shell",
         command: "fish",
         description: "Your custom Git-aware prompt, shell colors, startup fetch, and optional zoxide integration.",
-        instructions: "Open a new Fish shell to see the prompt. Edit fish/config.fish for startup commands, fish/functions/fish_prompt.fish for the prompt, and fish/conf.d/fish_frozen_theme.fish for colors. Use Set up Fish to install missing apps and apply this preset. Change the login shell only by selecting Make Fish default in the review dialog or using its button after apply. Fastfetch, hyfetch, and zoxide are optional and checked before use.",
+        instructions: "Open a new Fish shell to see the prompt. Edit fish/config.fish for startup commands, fish/functions/fish_prompt.fish for the prompt, and fish/conf.d/fish_frozen_theme.fish for colors. Use Install & Apply to install missing apps and apply this preset. Change the login shell only by selecting Make Fish default in the review dialog or using its button after apply. Fastfetch, hyfetch, and zoxide are optional and checked before use.",
         source: "notes_configs/nix_os_config/fish (third variant) + current Fish functions/colors",
         files: &[
             (
@@ -82,7 +87,7 @@ const PRESETS: &[Preset] = &[
         name: "Starship · User & host",
         command: "starship",
         description: "Your saved green username and blue hostname prompt settings.",
-        instructions: "Edit starship.toml to customize the prompt. To enable in Fish, add `starship init fish | source` inside the interactive block in fish/config.fish. For Zsh, add `eval \"$(starship init zsh)\"` to ~/.zshrc. Apply & show previews Starship without changing your shell integration.",
+        instructions: "Edit starship.toml to customize the prompt. To enable in Fish, add `starship init fish | source` inside the interactive block in fish/config.fish. For Zsh, add `eval \"$(starship init zsh)\"` to ~/.zshrc. Install & Apply saves Starship without changing your shell integration.",
         source: "notes_configs/nix_os_config/starship",
         files: &[("starship.toml", include_bytes!("../presets/starship.toml"))],
     },
@@ -121,11 +126,89 @@ const PRESETS: &[Preset] = &[
         name: "Hyprland · Desktop preset",
         command: "Hyprland",
         description: "Your rounded windows, blue/pink borders, blur, smooth animations, natural scrolling, and Super-key shortcuts, migrated to Lua.",
-        instructions: "For Hyprland 0.55+ (Arch currently provides 0.56). Apply config saves hypr/hyprland.lua with a backup. If Hyprland is already running it may reload automatically. Otherwise, save your work, log out, and choose Hyprland from your login screen. This app does not log you out or start a nested desktop. Super+Q opens a terminal, Super+R the launcher, Super+E files, Super+C closes a window; Super+1–0 switches workspaces. Use Setup guide for dependencies and customization.",
+        instructions: "For Hyprland 0.55+ (Arch currently provides 0.56). Install & Apply saves hypr/hyprland.lua with a backup. If Hyprland is already running it may reload automatically. Otherwise, save your work, log out, and choose Hyprland from your login screen. This app does not log you out or start a nested desktop. Super+Q opens a terminal, Super+R the launcher, Super+E files, Super+C closes a window; Super+1–0 switches workspaces. Use Setup guide for dependencies and customization.",
         source: "Projects/dotfiles/dotfiles/hypr/hyprland.conf, migrated using the upstream Hyprland 0.56.2 example",
         files: &[(
             "hypr/hyprland.lua",
             include_bytes!("../presets/hypr/hyprland.lua"),
+        )],
+    },
+    Preset {
+        id: "neovim",
+        name: "Neovim · Midnight editor",
+        command: "nvim",
+        description: "Line numbers, two-space indentation, persistent undo and a dark built-in theme.",
+        instructions: "Install & Apply opens a file diff first, then installs missing packages and saves the configuration. Open nvim to use it.",
+        source: "ArchEasy starter preset",
+        files: &[("nvim/init.lua", include_bytes!("../presets/nvim/init.lua"))],
+    },
+    Preset {
+        id: "tmux",
+        name: "Tmux · Terminal workspace",
+        command: "tmux",
+        description: "Mouse support, 10,000 lines of history and a blue status bar.",
+        instructions: "Install & Apply opens a file diff first, then installs missing packages and saves the configuration. Open tmux to use it.",
+        source: "ArchEasy starter preset",
+        files: &[(
+            "tmux/tmux.conf",
+            include_bytes!("../presets/tmux/tmux.conf"),
+        )],
+    },
+    Preset {
+        id: "waybar",
+        name: "Waybar · Blue & pink",
+        command: "waybar",
+        description: "Workspaces, clock, audio, networking and battery for your Wayland desktop.",
+        instructions: "Install & Apply opens a file diff first, then installs missing packages and saves the configuration. Open waybar to use it.",
+        source: "ArchEasy starter preset",
+        files: &[
+            (
+                "waybar/config.jsonc",
+                include_bytes!("../presets/waybar/config.jsonc"),
+            ),
+            (
+                "waybar/style.css",
+                include_bytes!("../presets/waybar/style.css"),
+            ),
+        ],
+    },
+    Preset {
+        id: "rofi",
+        name: "Rofi · Application launcher",
+        command: "rofi",
+        description: "A compact dark launcher with blue selection.",
+        instructions: "Install & Apply opens a file diff first, then installs missing packages and saves the configuration. Open rofi to use it.",
+        source: "ArchEasy starter preset",
+        files: &[(
+            "rofi/config.rasi",
+            include_bytes!("../presets/rofi/config.rasi"),
+        )],
+    },
+    Preset {
+        id: "wofi",
+        name: "Wofi · Wayland launcher",
+        command: "wofi",
+        description: "A compact application launcher to match the Hyprland preset.",
+        instructions: "Install & Apply opens a file diff first, then installs missing packages and saves the configuration. Open wofi to use it.",
+        source: "ArchEasy starter preset",
+        files: &[
+            ("wofi/config", include_bytes!("../presets/wofi/config")),
+            (
+                "wofi/style.css",
+                include_bytes!("../presets/wofi/style.css"),
+            ),
+        ],
+    },
+    Preset {
+        id: "btop",
+        name: "btop · System monitor",
+        command: "btop",
+        description: "A readable dark system monitor with CPU, memory, network and processes.",
+        instructions: "Install & Apply opens a file diff first, then installs missing packages and saves the configuration. Open btop to use it.",
+        source: "ArchEasy starter preset",
+        files: &[(
+            "btop/btop.conf",
+            include_bytes!("../presets/btop/btop.conf"),
         )],
     },
 ];
@@ -191,9 +274,18 @@ fn apply(preset: &Preset, root: &Path, backups: &Path) -> Result<PathBuf, String
     apply_plan(&workflow::Plan::builtin(preset), root, backups)
 }
 fn apply_plan(plan: &workflow::Plan, root: &Path, backups: &Path) -> Result<PathBuf, String> {
+    let backup = save_backup(plan, root, backups)?;
+    apply_saved(plan, root, &backup)?;
+    Ok(backup)
+}
+fn save_backup(plan: &workflow::Plan, root: &Path, backups: &Path) -> Result<PathBuf, String> {
     // Validate every destination before saving a complete rollback snapshot.
     for (name, _) in &plan.files {
-        safe_parent(root, name)?;
+        if plan.managed_parents.is_empty() {
+            safe_parent(root, name)?;
+        } else {
+            conflicts::preflight(root, name, &plan.managed_parents)?;
+        }
     }
     let backup = backups.join(&plan.id).join(stamp());
     fs::create_dir_all(&backup).map_err(|e| e.to_string())?;
@@ -235,12 +327,24 @@ fn apply_plan(plan: &workflow::Plan, root: &Path, backups: &Path) -> Result<Path
         entries.push(entry);
     }
     fs::set_permissions(&backup, fs::Permissions::from_mode(0o700)).map_err(|e| e.to_string())?;
-    let manifest = serde_json::json!({"root": root, "entries": entries});
+    let manifest = serde_json::json!({"root": root, "entries": entries, "managed_parents": plan.managed_parents});
     write_atomic(
         &backup.join("manifest.json"),
         manifest.to_string().as_bytes(),
         0o600,
     )?;
+    // A portable ZIP of the complete before-state must succeed before any write.
+    archive::snapshot(&backup, root)?;
+    Ok(backup)
+}
+fn apply_saved(plan: &workflow::Plan, root: &Path, backup: &Path) -> Result<(), String> {
+    conflicts::detach(root, backup, &plan.managed_parents)?;
+    for (name, _) in &plan.files {
+        if let Err(error) = safe_parent(root, name) {
+            let _ = conflicts::restore(root, backup, &plan.managed_parents);
+            return Err(error);
+        }
+    }
     for (name, bytes) in &plan.files {
         let contents = if name.ends_with(".png") {
             bytes.to_vec()
@@ -250,7 +354,7 @@ fn apply_plan(plan: &workflow::Plan, root: &Path, backups: &Path) -> Result<Path
                 .into_bytes()
         };
         if let Err(error) = write_atomic(&root.join(name), &contents, 0o600) {
-            let rollback = restore_snapshot(&backup, root);
+            let rollback = restore_snapshot(backup, root);
             return Err(format!(
                 "Apply failed: {error}. Rollback: {}. Backup: {}",
                 if rollback.is_ok() {
@@ -262,7 +366,10 @@ fn apply_plan(plan: &workflow::Plan, root: &Path, backups: &Path) -> Result<Path
             ));
         }
     }
-    Ok(backup)
+    if let Err(error) = history::record(plan, root, backup) {
+        eprintln!("Config version history: {error}");
+    }
+    Ok(())
 }
 fn restore_snapshot(backup: &Path, root: &Path) -> Result<(), String> {
     let manifest: serde_json::Value =
@@ -309,6 +416,9 @@ fn restore_snapshot(backup: &Path, root: &Path) -> Result<(), String> {
             )?;
         }
     }
+    let managed: Vec<(String, String)> =
+        serde_json::from_value(manifest["managed_parents"].clone()).unwrap_or_default();
+    conflicts::restore(root, backup, &managed)?;
     write_atomic(&backup.join("restored"), b"restored\n", 0o600)
 }
 fn latest_backup(id: &str, backups: &Path) -> Option<PathBuf> {
@@ -378,6 +488,13 @@ fn preview(preset: &Preset) -> Result<(), String> {
         }
         "fish" => super::terminal(vec!["fish".into(), "-i".into()]),
         "starship" => super::terminal(vec!["starship".into(), "prompt".into()]),
+        "nvim" | "tmux" | "btop" => super::terminal(vec![preset.command.into()]),
+        "rofi" => super::terminal(vec!["rofi".into(), "-show".into(), "drun".into()]),
+        "wofi" => super::terminal(vec!["wofi".into(), "--show".into(), "drun".into()]),
+        "waybar" => Err(
+            "Waybar starts with your next Hyprland session. Restart an existing Waybar to reload."
+                .into(),
+        ),
         _ => super::terminal(vec!["fastfetch".into()]),
     }
 }
@@ -386,7 +503,7 @@ fn show_result(preset: &Preset, parent: &gtk::ApplicationWindow) -> Result<(), S
         text_window(
             parent,
             "Hyprland setup guide",
-            "Hyprland · Desktop preset\n\n1. Click Install Hyprland & tools if needed. Confirm the package transaction in the terminal.\n2. Click Apply config. Your previous hypr/hyprland.lua is backed up. An existing legacy hyprland.conf is left in place; modern Hyprland uses the Lua file.\n3. Save your work, log out, and select Hyprland on your login screen. ArchEasy does not switch desktops automatically. On an active Hyprland session, config changes may reload immediately.\n\nShortcuts\nSuper+Q: Ghostty, with Kitty fallback\nSuper+C: close window\nSuper+E: Thunar, with Dolphin fallback\nSuper+R or Super+Space: Wofi launcher\nSuper+V: toggle floating window\nSuper+Shift+V: clipboard history\nSuper+arrows: focus; Super+Shift+arrows: move window\nSuper+1–0: workspace; add Shift to move a window there\nSuper+M: leave the Hyprland session\nPrint: capture a selected region to the clipboard\n\nCustomize ~/.config/hypr/hyprland.lua. Terminal, file manager and launcher commands are at the top; gaps, colors, blur, animations and touchpad settings follow. Change monitor scale if needed. Optional tools start only when installed. No wallpaper, AGS widgets, or pywal cache paths are required. Existing Waybar configuration is used if present.\n\nInstall tools includes Hyprland, Kitty, Wofi, Thunar, Waybar, SwayNC, the Hyprland portal and polkit agent, clipboard/screenshot tools, WirePlumber and brightnessctl. Installation may update your Arch system.\n\nCheck an installed version with Hyprland --version. See https://wiki.hypr.land/configuring/ for current configuration documentation. Use Restore backup to revert the saved Lua config. A full Hyprland session is needed to test compositor behavior.",
+            "Hyprland · Desktop preset\n\n1. Click Install & Apply. Confirm the package transaction in the terminal.\n2. Review the diff and apply. Your previous hypr/hyprland.lua is backed up. An existing legacy hyprland.conf is left in place; modern Hyprland uses the Lua file.\n3. Save your work, log out, and select Hyprland on your login screen. ArchEasy does not switch desktops automatically. On an active Hyprland session, config changes may reload immediately.\n\nShortcuts\nSuper+Q: Ghostty, with Kitty fallback\nSuper+C: close window\nSuper+E: Thunar, with Dolphin fallback\nSuper+R or Super+Space: Wofi launcher\nSuper+V: toggle floating window\nSuper+Shift+V: clipboard history\nSuper+arrows: focus; Super+Shift+arrows: move window\nSuper+1–0: workspace; add Shift to move a window there\nSuper+M: leave the Hyprland session\nPrint: capture a selected region to the clipboard\n\nCustomize ~/.config/hypr/hyprland.lua. Terminal, file manager and launcher commands are at the top; gaps, colors, blur, animations and touchpad settings follow. Change monitor scale if needed. Optional tools start only when installed. No wallpaper, AGS widgets, or pywal cache paths are required. Existing Waybar configuration is used if present.\n\nInstall tools includes Hyprland, Kitty, Wofi, Thunar, Waybar, SwayNC, the Hyprland portal and polkit agent, clipboard/screenshot tools, WirePlumber and brightnessctl. Installation may update your Arch system.\n\nCheck an installed version with Hyprland --version. See https://wiki.hypr.land/configuring/ for current configuration documentation. Use Restore backup to revert the saved Lua config. A full Hyprland session is needed to test compositor behavior.",
         );
         Ok(())
     } else {
@@ -404,7 +521,7 @@ pub fn page(parent: &gtk::ApplicationWindow) -> gtk::Box {
     });
     let page = gtk::Box::new(gtk::Orientation::Vertical, 12);
     let intro = super::label(
-        "Preview changes before applying. Fish setup and the terminal stack install missing apps, back up configs, and optionally select Fish as your login shell.",
+        "Preview changes before applying. All presets install missing apps, back up configs, and optionally select Fish as your login shell.",
         "subtitle",
     );
     intro.set_wrap(true);
@@ -416,24 +533,35 @@ pub fn page(parent: &gtk::ApplicationWindow) -> gtk::Box {
     status.set_wrap(true);
     status.set_selectable(true);
     page.append(&status);
-    let folders = gtk::Box::new(gtk::Orientation::Horizontal, 8);
+    let folders = gtk::FlowBox::new();
+    folders.set_selection_mode(gtk::SelectionMode::None);
+    folders.set_homogeneous(false);
+    folders.set_row_spacing(8);
+    folders.set_column_spacing(8);
+    folders.set_max_children_per_line(4);
     if let Ok(uri) = glib::filename_to_uri(glib::user_config_dir(), None) {
-        folders.append(&gtk::LinkButton::with_label(&uri, "Open config folder ↗"));
+        folders.insert(
+            &gtk::LinkButton::with_label(&uri, "Open config folder ↗"),
+            -1,
+        );
     }
-    folders.append(&refresh);
+    folders.insert(&refresh, -1);
+    archive::buttons(&folders, parent, &status, &refresh);
+    history::button(&folders, parent, &status, &refresh);
+    community::button(&folders, parent, &status, &refresh);
     page.append(&folders);
     let list = gtk::Box::new(gtk::Orientation::Vertical, 12);
     let stack_card = gtk::Box::new(gtk::Orientation::Vertical, 8);
     stack_card.add_css_class("card");
-    stack_card.append(&super::label("Terminal setup · Apply all", "name"));
-    stack_card.append(&super::label("Fish + Starship + Ghostty + Fastfetch, with Starship enabled in Fish. One backup covers the whole stack.", "subtitle"));
+    stack_card.append(&super::label("Danny’s Full Setup", "name"));
+    stack_card.append(&super::label("Fish + Starship + Ghostty + Kitty + Fastfetch + Hyprland. One backup ZIP is saved before configuration changes.", "subtitle"));
     workflow::badge(
         &stack_card,
         workflow::Plan::stack().dependencies,
         &refreshers,
     );
     let stack_actions = gtk::Box::new(gtk::Orientation::Horizontal, 8);
-    let stack_apply = gtk::Button::with_label("Preview & apply terminal stack");
+    let stack_apply = gtk::Button::with_label("Install & Apply Full Setup");
     stack_apply.set_widget_name("apply-terminal-stack");
     stack_apply.add_css_class("suggested-action");
     let weak = parent.downgrade();
@@ -457,11 +585,20 @@ pub fn page(parent: &gtk::ApplicationWindow) -> gtk::Box {
     let s = status.clone();
     stack_restore.connect_clicked(move |_| { if let Some(parent) = weak.upgrade() { if let Some(backup) = latest_backup("terminal-stack", &backups_dir()) { match restore_snapshot(&backup, &glib::user_config_dir()) { Ok(()) => s.set_text("Restored the entire terminal stack backup. Installed packages and login shell are unchanged."), Err(e) => notice(&parent, "Could not restore stack", &e) } } else { notice(&parent, "No stack backup yet", "Apply the terminal stack first."); } } });
     stack_actions.append(&stack_restore);
+    let stack_export = gtk::Button::with_label("Export full setup to GitHub");
+    let weak = parent.downgrade();
+    stack_export.connect_clicked(move |_| {
+        if let Some(parent) = weak.upgrade() {
+            sharing::export_dialog(&parent, workflow::Plan::stack());
+        }
+    });
+    stack_actions.append(&stack_export);
     stack_card.append(&stack_actions);
     list.append(&stack_card);
     let custom = gtk::Box::new(gtk::Orientation::Vertical, 12);
     sharing::add_custom_cards(&custom, parent, &status, &refresh);
     sharing::add_import_button(&folders, &custom, parent, &status, &refresh);
+    sharing::add_url_button(&folders, &custom, parent, &status, &refresh);
     list.append(&custom);
     for preset in PRESETS {
         let card = gtk::Box::new(gtk::Orientation::Vertical, 8);
@@ -475,6 +612,7 @@ pub fn page(parent: &gtk::ApplicationWindow) -> gtk::Box {
         let description = super::label(preset.description, "subtitle");
         description.set_wrap(true);
         card.append(&description);
+        previews::add(&card, preset, parent);
         let instructions = super::label(preset.instructions, "");
         instructions.set_wrap(true);
         instructions.set_selectable(true);
@@ -526,15 +664,7 @@ pub fn page(parent: &gtk::ApplicationWindow) -> gtk::Box {
             }
         });
         actions.insert(&view, -1);
-        let apply_button = gtk::Button::with_label(if preset.id == "hyprland" {
-            "Apply config"
-        } else {
-            if preset.id == "fish" {
-                "Set up Fish"
-            } else {
-                "Diff, apply & show"
-            }
-        });
+        let apply_button = gtk::Button::with_label("Install & Apply");
         apply_button.add_css_class("suggested-action");
         let s = status.clone();
         let weak = parent.downgrade();
@@ -544,11 +674,7 @@ pub fn page(parent: &gtk::ApplicationWindow) -> gtk::Box {
                 workflow::review_dialog(
                     &parent,
                     workflow::Plan::builtin(preset),
-                    if preset.id == "fish" {
-                        workflow::Mode::Setup
-                    } else {
-                        workflow::Mode::Direct
-                    },
+                    workflow::Mode::Setup,
                     &s,
                     &r,
                     Some(preset),
@@ -595,32 +721,7 @@ pub fn page(parent: &gtk::ApplicationWindow) -> gtk::Box {
             }
         });
         actions.insert(&restore, -1);
-        let install = gtk::Button::with_label(if preset.id == "hyprland" {
-            "Install Hyprland & tools"
-        } else {
-            "Install app"
-        });
-        let weak_install = install.downgrade();
-        let dependencies = workflow::Plan::builtin(preset).dependencies;
-        refreshers.borrow_mut().push(Box::new(move || {
-            if let Some(button) = weak_install.upgrade() {
-                button.set_sensitive(
-                    dependencies
-                        .iter()
-                        .any(|name| !workflow::dependency_met(name)),
-                );
-            }
-        }));
-        let weak = parent.downgrade();
-        install.connect_clicked(move |_| {
-            if let Err(e) = workflow::install_dependencies(&workflow::Plan::builtin(preset))
-                && let Some(parent) = weak.upgrade()
-            {
-                notice(&parent, "Could not start installation", &e);
-            }
-        });
-        actions.insert(&install, -1);
-        let export = gtk::Button::with_label("Export to Gist");
+        let export = gtk::Button::with_label("Export to GitHub");
         let weak = parent.downgrade();
         export.connect_clicked(move |_| {
             if let Some(parent) = weak.upgrade() {
@@ -673,13 +774,28 @@ pub fn page(parent: &gtk::ApplicationWindow) -> gtk::Box {
 pub fn cli_apply(path: &Path) -> glib::ExitCode {
     match workflow::run_job(path) {
         Ok(backup) => {
-            println!("Configs applied. Complete backup: {}", backup.display());
+            println!(
+                "Configs applied. Complete backup: {}. {}",
+                backup.display(),
+                history::message(&backup)
+            );
             glib::ExitCode::SUCCESS
         }
         Err(error) => {
             eprintln!("Config apply failed: {error}");
             glib::ExitCode::FAILURE
         }
+    }
+}
+
+pub fn system_plan_json() -> Result<serde_json::Value, String> {
+    Ok(history::current_plan(&glib::user_config_dir(), &backups_dir())?.json())
+}
+pub fn publish_system_configs(parent: &gtk::ApplicationWindow) {
+    match history::current_plan(&glib::user_config_dir(), &backups_dir()) {
+        Ok(plan) if !plan.files.is_empty() => sharing::export_dialog(parent, plan),
+        Ok(_) => notice(parent, "No applied configs yet", "Apply a preset first."),
+        Err(e) => notice(parent, "Could not collect applied configs", &e),
     }
 }
 
