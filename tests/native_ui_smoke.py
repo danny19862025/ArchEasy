@@ -10,6 +10,9 @@ case "$1" in
 -Ss) if [[ "$*" == *fire* ]]; then sleep 0.6; printf 'extra/firefox 1.0\\n    Browser\\n'; else printf 'extra/ghostty 1.0 [installed]\\n    Terminal\\n'; fi;;
 -Si) printf 'Name : ghostty\\nDownload Size : 120 KiB\\n';;
 -Quq) printf 'firefox\\nghostty\\n';;
+-Qen|-Qem) if [[ ${ARCHEASY_BROKEN_REPO:-0} == 1 ]]; then printf 'error: fixture: missing required signature\\n' >&2; exit 1; fi
+if [[ $1 == -Qen ]]; then printf 'ghostty 1.0\\nfish 1.0\\n'; else printf 'local-tool 1.0\\n'; fi;;
+-Qe) printf 'ghostty 1.0\\nfish 1.0\\nlocal-tool 1.0\\n';;
 -Qq) printf 'ghostty\\n';;
 esac
 ''',

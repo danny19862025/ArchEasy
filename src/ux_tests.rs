@@ -274,6 +274,132 @@ fn native_search_and_guided_flows() {
         win.has_css_class("dark"),
         adw::StyleManager::default().is_dark()
     );
+    assert!(
+        widgets
+            .iter()
+            .filter_map(|w| w.clone().downcast::<gtk::ToggleButton>().ok())
+            .any(|b| b.label().as_deref() == Some("GitHub"))
+    );
+    let tabs = widgets
+        .iter()
+        .find(|w| w.widget_name() == "archeasy-tabs")
+        .unwrap()
+        .clone()
+        .downcast::<gtk::Stack>()
+        .unwrap();
+    tabs.set_visible_child_name("installed");
+    pump(Duration::from_millis(1600));
+    let installed_widgets = descendants(&tabs.child_by_name("installed").unwrap());
+    let ring = |name: &str| {
+        installed_widgets
+            .iter()
+            .find(|w| w.widget_name() == name)
+            .unwrap()
+    };
+    if std::env::var("ARCHEASY_BROKEN_REPO").as_deref() == Ok("1") {
+        assert!(
+            ring("installed-ring-pacman")
+                .tooltip_text()
+                .unwrap()
+                .contains("3 of 3 installed entries (100%)")
+        );
+        assert!(
+            ring("installed-ring-aur")
+                .tooltip_text()
+                .unwrap()
+                .contains("included in the Pacman total")
+        );
+        assert!(
+            installed_widgets
+                .iter()
+                .filter_map(|w| w.clone().downcast::<gtk::Label>().ok())
+                .any(|l| l.text().contains("missing required signature"))
+        );
+    } else {
+        assert!(
+            ring("installed-ring-pacman")
+                .tooltip_text()
+                .unwrap()
+                .contains("2 of 3 installed entries (67%)")
+        );
+        assert!(
+            ring("installed-ring-aur")
+                .tooltip_text()
+                .unwrap()
+                .contains("1 of 3 installed entries (33%)")
+        );
+    }
+    assert!(
+        installed_widgets
+            .iter()
+            .any(|w| w.widget_name().contains("local-tool"))
+    );
+    if let Ok(path) = std::env::var("ARCHEASY_INSTALLED_SCREENSHOT") {
+        let paintable = gtk::WidgetPaintable::new(Some(&win));
+        let snapshot = gtk::Snapshot::new();
+        paintable.snapshot(&snapshot, win.width() as f64, win.height() as f64);
+        let node = snapshot.to_node().unwrap();
+        let renderer = gtk::gsk::Renderer::for_surface(&win.surface().unwrap()).unwrap();
+        renderer
+            .render_texture(&node, None)
+            .save_to_png(path)
+            .unwrap();
+        renderer.unrealize();
+    }
+    tabs.set_visible_child_name("software");
+    pump(Duration::from_millis(200));
+    let card_host = gtk::Box::new(gtk::Orientation::Vertical, 8);
+    let card_status = gtk::Label::new(None);
+    let (queue, queue_run) = store::queue_bar(&card_host, &card_status);
+    let (github_row, build) = ux::result_row(
+        Package {
+            name: "danny19862025/dotfiles".into(),
+            version: "★ 12".into(),
+            description: "fish config with starship".into(),
+            source: "GitHub".into(),
+            remote: String::new(),
+            installed: false,
+        },
+        "Size unavailable",
+        &queue,
+        &queue_run,
+        &card_status,
+    );
+    assert_eq!(build.label().as_deref(), Some("Clone & Build"));
+    assert!(build.is_sensitive());
+    assert_eq!(github_row.title(), "danny19862025/dotfiles");
+    assert!(
+        github_row
+            .subtitle()
+            .unwrap()
+            .contains("GitHub • ★ 12 • Root PKGBUILD")
+    );
+    assert!(
+        descendants(&github_row)
+            .iter()
+            .filter_map(|w| w.clone().downcast::<gtk::LinkButton>().ok())
+            .any(|b| b.uri() == "https://github.com/danny19862025/dotfiles")
+    );
+    assert!(
+        !descendants(&github_row)
+            .iter()
+            .any(|w| w.is::<gtk::CheckButton>())
+    );
+    let list = widgets
+        .iter()
+        .find(|w| w.widget_name() == "software-results")
+        .unwrap()
+        .clone()
+        .downcast::<gtk::ListBox>()
+        .unwrap();
+    let states = widgets
+        .iter()
+        .filter_map(|w| w.clone().downcast::<gtk::Stack>().ok())
+        .find(|stack| stack.child_by_name("results").is_some())
+        .unwrap();
+    list.append(&github_row);
+    states.set_visible_child_name("results");
+    pump(Duration::from_millis(150));
     if let Ok(path) = std::env::var("ARCHEASY_UI_SCREENSHOT") {
         assert!(
             win.measure(gtk::Orientation::Vertical, win.width()).0 < 1000,

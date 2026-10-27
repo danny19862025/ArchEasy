@@ -1,6 +1,6 @@
 # ArchEasy
 
-A Rust + GTK4 software browser for Arch Linux. Search Pacman, AUR, and Flatpak together, filter by source, see installed packages, and start installation from a package card.
+A Rust + GTK4 software browser for Arch Linux. Search Pacman, AUR, Flatpak, and GitHub together, filter by source, see installed packages, and start installation from a package card.
 
 ## Screenshots
 
@@ -75,6 +75,14 @@ Requires GTK4 (4.10+), Libadwaita (1.2+), Rust, pacman, curl, and a supported te
 The Install button opens an interactive terminal. Passwords, transaction confirmation, dependency choices, and AUR build review remain in the package manager. Pacman uses `sudo pacman -Syu --needed` so installation can also update the system. Flatpak installation uses your user account. Each result has a link beside Install: **Arch package** opens the official Arch package listing filtered to that exact package name, **AUR page** opens its AUR page and build files, and Flathub results have a **Flathub page** link. Links remain available for installed packages. Close an installation terminal only after its transaction finishes. Search again afterward to refresh installed status.
 
 Search errors appear above the results. Install errors appear in a dialog. If a terminal crashes immediately, ArchEasy tries another supported terminal and reports startup failures. After a launch failure, search again to retry. Pacman searches the locally synchronized database; AUR searches the online RPC API; Flatpak searches configured AppStream catalogs. Results are limited to 150 cards; use a more specific search for large result sets. No automatic package installation or removal occurs on app startup.
+
+## GitHub builds
+
+The **GitHub** source searches the GitHub repository API with your query plus `PKGBUILD in:name,description,readme`. It checks the first 20 candidates for a root PKGBUILD and displays matching repositories with their description, star count, and GitHub page link. Repository search uses metadata, so repositories that never mention PKGBUILD may not be discovered; nested build recipes are excluded. Search results are cached for five minutes. GitHub results also appear under **All**; installed packages remain tracked by Pacman/AUR or Flatpak.
+
+**Clone & Build** opens the usual interactive terminal, clones into a fresh private `/tmp/archeasy-github-<owner>-<repo>.*` workspace, displays PKGBUILD for review, and runs `makepkg -si` after confirmation. Git and the `base-devel` build tools are required. The workspace remains available for inspection or another build. GitHub builds run individually and are not included in the package queue.
+
+Optionally save a GitHub token in `$XDG_CONFIG_HOME/archeasy/github_token` (default `~/.config/archeasy/github_token`) with permissions `0600`. Public repository search works without a token; GitHub applies separate search and API request limits, and each candidate check uses an API request. Rate limit and authentication failures appear in the search status. Tokens are sent only to the GitHub API and are never passed to terminal commands. Release binary/AppImage installation is not included in this source.
 
 ## System updates
 
@@ -224,8 +232,10 @@ Maintainers can build a binary archive and SHA-256 file with `bash scripts/packa
 
 ### Native cards and guided setup
 
-Software search updates as you type (220 ms debounce), with All, Pacman, AUR, Flatpak, and Installed filters. Each source appears as it finishes; older queries cannot replace newer results. Press `/` to focus search, `Esc` to clear, and Down or Enter to focus results. Use arrows to select a row and Enter to request installation in your terminal. Source, available download size, and installed status appear directly in each card. Missing size metadata is labelled explicitly. Package icons use the active desktop icon theme, including Papirus names with symbolic fallbacks.
+Software search updates as you type (220 ms debounce; 900 ms for All/GitHub to reduce API requests), with All, Pacman, AUR, Flatpak, GitHub, and Installed filters. Each source appears as it finishes; older queries cannot replace newer results. Press `/` to focus search, `Esc` to clear, and Down or Enter to focus results. Use arrows to select a row and Enter to request installation in your terminal. Source, available download size, and installed status appear directly in each card. Missing size metadata is labelled explicitly. Package icons use the active desktop icon theme, including Papirus names with symbolic fallbacks.
 
 First launch offers helper setup, Danny’s configs, and an update review, with Skip. Config review shows the file count, backup location, and an expandable View Diff. Successful config application offers an Undo toast using that operation’s backup. The system update review checks package counts before enabling Start, lists the actual commands, and offers available snapshot tools. Official update counts use cached Pacman metadata and may change after refreshing. System, Light, and Dark use Libadwaita’s style manager; dark appearance uses a softer blue halo.
 
 Run `python3 tests/native_ui_smoke.py` in a desktop session to verify live search, stale-result handling, Installed filtering, onboarding, toast actions, and update review using fake package tools and temporary settings. A preview is saved to `/tmp/archeasy-native-preview.png`.
+
+If a repository database error prevents Pacman from separating native and foreign packages, Installed falls back to its local package list. The Pacman circle includes AUR/local entries, the AUR circle reads N/A with “Included in Pacman”, and a status message explains the repository error. Source percentages return after repairing repository metadata and refreshing.

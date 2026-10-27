@@ -60,9 +60,12 @@ fn query_packages(flag: &str, source: usize) -> Result<Vec<Installed>, String> {
         Err(error) => Err(error),
     }
 }
-fn query_installed() -> [Result<Vec<Installed>, String>; 3] {
-    let native = query_packages("-Qen", 0);
-    let foreign = query_packages("-Qem", 1);
+struct InstalledSnapshot {
+    sources: [Result<Vec<Installed>, String>; 3],
+    combined_pacman: Option<String>,
+}
+fn query_installed() -> InstalledSnapshot {
+    let (native, foreign, combined_pacman) = query_pacman(query_packages);
     let flatpaks = if available("flatpak") {
         (|| {
             let mut apps = Vec::new();
@@ -78,7 +81,35 @@ fn query_installed() -> [Result<Vec<Installed>, String>; 3] {
     } else {
         Ok(vec![])
     };
-    [native, foreign, flatpaks]
+    InstalledSnapshot {
+        sources: [native, foreign, flatpaks],
+        combined_pacman,
+    }
+}
+type PackageResult = Result<Vec<Installed>, String>;
+fn query_pacman(
+    query: impl Fn(&str, usize) -> PackageResult,
+) -> (PackageResult, PackageResult, Option<String>) {
+    let native = query("-Qen", 0);
+    let foreign = query("-Qem", 1);
+    if let Some(error) = native.as_ref().err().or(foreign.as_ref().err()) {
+        // Native/foreign classification requires valid sync databases. The local
+        // installed database remains useful even when a configured repo is broken.
+        if let Ok(packages) = query("-Qe", 0) {
+            let reason = error
+                .lines()
+                .next()
+                .unwrap_or("Repository metadata unavailable");
+            return (
+                Ok(packages),
+                Ok(vec![]),
+                Some(format!(
+                    "Pacman includes AUR/local packages because their source could not be separated. {reason}. Repair repository metadata, then refresh to restore the split."
+                )),
+            );
+        }
+    }
+    (native, foreign, None)
 }
 // Largest-remainder rounding keeps the three displayed percentages at 100%.
 fn percentages(counts: [usize; 3]) -> [u32; 3] {
@@ -115,6 +146,7 @@ impl Ring {
         let canvas = gtk::DrawingArea::builder()
             .content_width(112)
             .content_height(112)
+            .halign(gtk::Align::Center)
             .valign(gtk::Align::Center)
             .build();
         canvas.set_widget_name(&format!("installed-ring-{}", SOURCES[index].to_lowercase()));
@@ -149,7 +181,8 @@ impl Ring {
             let pop = 1.0 + 2.70158 * (t - 1.0).powi(3) + 1.70158 * (t - 1.0).powi(2);
             let scale = 0.65 + 0.35 * pop;
             cr.translate(f64::from(width) / 2.0, f64::from(height) / 2.0);
-            cr.scale(scale, scale);
+            let fit = f64::from(width.min(height)) / 112.0;
+            cr.scale(scale * fit, scale * fit);
             let foreground = area.color();
             let rgb = (
                 f64::from(foreground.red()),
@@ -158,6 +191,7 @@ impl Ring {
             );
             cr.set_source_rgba(rgb.0, rgb.1, rgb.2, 0.12);
             cr.set_line_width(8.0);
+            cr.new_sub_path();
             cr.arc(0.0, 0.0, 43.0, 0.0, std::f64::consts::TAU);
             let _ = cr.stroke();
             let (r, g, b) = COLORS[index];
@@ -167,6 +201,7 @@ impl Ring {
             {
                 cr.set_source_rgba(r, g, b, ease);
                 cr.set_line_cap(gtk::cairo::LineCap::Round);
+                cr.new_sub_path();
                 cr.arc(
                     0.0,
                     0.0,
@@ -176,7 +211,7 @@ impl Ring {
                 );
                 let _ = cr.stroke();
             }
-            let text = value.get().map_or("—".into(), |(_, percent)| {
+            let text = value.get().map_or("N/A".into(), |(_, percent)| {
                 format!("{}%", (f64::from(percent) * ease).round() as u32)
             });
             cr.select_font_face(
@@ -321,11 +356,12 @@ pub fn page() -> gtk::Box {
         let caption = caption.clone();
         let rings = rings.clone();
         glib::timeout_add_local(Duration::from_millis(100), move || {
-            let results = match rx.try_recv() {
+            let snapshot = match rx.try_recv() {
                 Ok(r) => r,
                 Err(mpsc::TryRecvError::Empty) => return glib::ControlFlow::Continue,
-                Err(_) => std::array::from_fn(|_| Err("Package query stopped unexpectedly".into())),
+                Err(_) => InstalledSnapshot { sources: std::array::from_fn(|_| Err("Package query stopped unexpectedly".into())), combined_pacman: None },
             };
+            let InstalledSnapshot { sources: results, combined_pacman } = snapshot;
             button.set_sensitive(true);
             while let Some(child) = list.first_child() { list.remove(&child); }
             let complete = results.iter().all(Result::is_ok);
@@ -333,13 +369,23 @@ pub fn page() -> gtk::Box {
             let total = counts.iter().sum::<usize>();
             let percents = percentages(counts);
             for (i, ring) in rings.iter().enumerate() {
+                if i == 1 && combined_pacman.is_some() {
+                    ring.update(None, None, 0);
+                    ring.count.set_text("Included in Pacman");
+                    let detail = "AUR/local packages are included in the Pacman total. Repository metadata could not separate their sources.";
+                    ring.canvas.set_tooltip_text(Some(detail));
+                    ring.canvas.update_property(&[gtk::accessible::Property::Label(detail)]);
+                    continue;
+                }
                 ring.update(results[i].as_ref().ok().map(Vec::len), complete.then_some(total), percents[i]);
             }
             caption.set_text(&if complete {
                 if total == 0 { "No installed entries found.".into() }
+                else if combined_pacman.is_some() { format!("{total} installed entries · Pacman includes AUR/local") }
                 else { format!("{total} installed entries · share by source") }
             } else { "Some sources could not be read · percentages unavailable".into() });
-            let errors = results.iter().enumerate().filter_map(|(i, result)| result.as_ref().err().map(|e| format!("{}: {e}", SOURCES[i]))).collect::<Vec<_>>();
+            let mut errors = results.iter().enumerate().filter_map(|(i, result)| result.as_ref().err().map(|e| format!("{}: {e}", SOURCES[i]))).collect::<Vec<_>>();
+            if let Some(warning) = &combined_pacman { errors.insert(0, warning.clone()); }
             status.set_text(&if errors.is_empty() {
                 "Explicit Pacman packages and Flatpak apps. AUR includes foreign/local packages. Refresh after removing software.".into()
             } else { errors.join(" · ") });
@@ -355,7 +401,7 @@ pub fn page() -> gtk::Box {
                 info.append(&title);
                 let source = if let Some(scope) = package.scope {
                     format!("Flatpak · {} · {}", scope.trim_start_matches('-'), package.id)
-                } else if package.source == 1 { "AUR / local".into() } else { "Pacman · official repositories".into() };
+                } else if package.source == 1 { "AUR / local".into() } else if combined_pacman.is_some() { "Pacman · includes AUR / local".into() } else { "Pacman · official repositories".into() };
                 info.append(&label(&source, "subtitle"));
                 body.append(&info);
                 let remove = gtk::Button::with_label("Remove");
@@ -383,6 +429,44 @@ pub fn page() -> gtk::Box {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn broken_repository_keeps_local_installed_packages_without_guessing_sources() {
+        let calls = std::cell::RefCell::new(Vec::new());
+        let (native, foreign, warning) = query_pacman(|flag, source| {
+            calls.borrow_mut().push(flag.to_owned());
+            if flag == "-Qe" {
+                Ok(parse_packages("firefox 1\nlocal-tool 2\n", source))
+            } else {
+                Err("error: example: missing required signature\nrepository is invalid".into())
+            }
+        });
+        let packages = native.unwrap();
+        assert_eq!(packages.len(), 2);
+        assert_eq!(packages[1].id, "local-tool");
+        assert!(foreign.unwrap().is_empty());
+        assert!(warning.as_ref().unwrap().contains("includes AUR/local"));
+        assert!(warning.unwrap().contains("missing required signature"));
+        assert_eq!(*calls.borrow(), ["-Qen", "-Qem", "-Qe"]);
+    }
+    #[test]
+    fn healthy_repository_preserves_split_and_local_database_failure_stays_visible() {
+        let (native, foreign, warning) = query_pacman(|flag, source| {
+            assert_ne!(flag, "-Qe");
+            Ok(parse_packages(
+                if flag == "-Qen" {
+                    "firefox 1"
+                } else {
+                    "local-tool 2"
+                },
+                source,
+            ))
+        });
+        assert_eq!(native.unwrap()[0].source, 0);
+        assert_eq!(foreign.unwrap()[0].source, 1);
+        assert!(warning.is_none());
+        let (native, foreign, warning) = query_pacman(|_, _| Err("database unreadable".into()));
+        assert!(native.is_err() && foreign.is_err() && warning.is_none());
+    }
     #[test]
     #[ignore = "requires a graphical session"]
     fn installed_rings_animate_settle_and_respect_reduced_motion() {

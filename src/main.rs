@@ -5,6 +5,7 @@ mod cloud;
 mod configs;
 mod custom_theme;
 mod flatpak_permissions;
+mod github;
 mod maintenance;
 mod search_history;
 mod snapshots;
@@ -44,6 +45,10 @@ fn package_page(package: &Package) -> Option<(String, &'static str)> {
             format!("https://aur.archlinux.org/packages/{name}"),
             "AUR page ↗",
         )),
+        "GitHub" if github::valid_repo(&package.name) => Some((
+            format!("https://github.com/{}", package.name),
+            "GitHub page ↗",
+        )),
         "Flatpak" if package.remote == "flathub" => {
             Some((format!("https://flathub.org/apps/{name}"), "Flathub page ↗"))
         }
@@ -72,6 +77,9 @@ fn valid_id(s: &str) -> bool {
             .all(|c| c.is_ascii_alphanumeric() || b"@._+-/".contains(&c))
 }
 fn search(query: &str, source: &str) -> Result<Vec<Package>, String> {
+    if source == "GitHub" {
+        return github::search_github(query);
+    }
     let terms = task_search::terms(query);
     let mut results = vec![];
     let mut errors = vec![];
@@ -333,6 +341,9 @@ fn system_update(snapshot: &str) -> Result<(), String> {
     ])
 }
 fn install(p: &Package) -> Result<(), String> {
+    if p.source == "GitHub" {
+        return github::install(p);
+    }
     if !valid_id(&p.name) || (!p.remote.is_empty() && !valid_id(&p.remote)) {
         return Err("Invalid package identifier".into());
     }
@@ -624,7 +635,7 @@ fn build_ui(app: &gtk::Application) {
         &win,
         "ArchEasy",
         "system-software-install",
-        "A beginner-friendly software browser for Arch Linux.\n\nSearch Pacman, AUR, and Flatpak in one place. Open package pages and start installations with your usual package manager.\n\nPacman installations include system updates. Review community AUR build scripts before installing. Password and confirmation prompts appear in your terminal.\n\nBuilt with Rust, GTK4, and Libadwaita.",
+        "A beginner-friendly software browser for Arch Linux.\n\nSearch Pacman, AUR, Flatpak, and GitHub in one place. Open package pages and start installations with your usual package manager.\n\nPacman installations include system updates. Review community AUR and GitHub build scripts before installing. Password and confirmation prompts appear in your terminal.\n\nBuilt with Rust, GTK4, and Libadwaita.",
     );
     about.connect_clicked(move |_| dialog.present());
     top.append(&about);
@@ -645,7 +656,7 @@ fn build_ui(app: &gtk::Application) {
         }
     });
     root.append(&label(
-        "Find your next app. One search, three software sources.",
+        "Find your next app. One search, four software sources.",
         "subtitle",
     ));
     let software = gtk::Box::new(gtk::Orientation::Vertical, 14);

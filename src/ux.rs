@@ -122,6 +122,98 @@ fn sizes(packages: &[Package]) -> std::collections::HashMap<String, String> {
     }
     sizes
 }
+/// Shared result renderer keeps source-specific actions consistent with keyboard activation.
+pub(super) fn result_row(
+    p: Package,
+    size: &str,
+    queue: &store::Queue,
+    queue_run: &gtk::Button,
+    status: &gtk::Label,
+) -> (adw::ActionRow, gtk::Button) {
+    let row = adw::ActionRow::builder()
+        .title(&p.name)
+        .use_markup(false)
+        .activatable(true)
+        .build();
+    row.set_title_lines(1);
+    row.set_subtitle_lines(3);
+    row.set_tooltip_text(Some(&format!("{} • {} • {}", p.name, p.version, p.remote)));
+    let origin = if p.source == "Pacman" {
+        "Official"
+    } else {
+        &p.source
+    };
+    if p.source == "GitHub" {
+        row.set_subtitle(&format!(
+            "{}\nGitHub • {} • Root PKGBUILD",
+            p.description, p.version
+        ));
+    } else {
+        row.set_subtitle(&format!(
+            "{}\n{origin} • {} • {}",
+            p.description,
+            size,
+            if p.installed {
+                "Installed"
+            } else {
+                "Not installed"
+            }
+        ));
+    }
+    row.add_prefix(&icon(&p.name));
+    if p.source != "GitHub" {
+        row.add_suffix(&store::checkbox(&p, queue, queue_run));
+    }
+    if let Some((url, title)) = package_page(&p) {
+        let link = gtk::LinkButton::with_label(
+            &url,
+            if p.source == "GitHub" {
+                "GitHub ↗"
+            } else {
+                "Details ↗"
+            },
+        );
+        link.set_valign(gtk::Align::Center);
+        link.set_tooltip_text(Some(title));
+        row.add_suffix(&link);
+    }
+    if p.source == "Flatpak" {
+        let permissions = gtk::Button::from_icon_name("security-high-symbolic");
+        permissions.set_tooltip_text(Some("View Flatpak permissions"));
+        permissions.set_valign(gtk::Align::Center);
+        let id = p.name.clone();
+        permissions.connect_clicked(move |_| flatpak_permissions::open(&id, "--user"));
+        row.add_suffix(&permissions);
+    }
+    let button = gtk::Button::with_label(if p.installed {
+        "Installed"
+    } else if p.source == "GitHub" {
+        "Clone & Build"
+    } else {
+        "Install"
+    });
+    button.set_valign(gtk::Align::Center);
+    button.set_sensitive(!p.installed);
+    button.add_css_class("suggested-action");
+    let status = status.clone();
+    button.connect_clicked(move |button| match install(&p) {
+        Ok(()) => {
+            button.set_sensitive(false);
+            button.set_label("Check terminal");
+            toast(&format!("{} installation opened in terminal", p.name));
+            status.set_text(
+                "Review package and password prompts in your terminal. Search again when finished.",
+            );
+        }
+        Err(e) => {
+            status.set_text(&e);
+            show_error(&e);
+        }
+    });
+    row.add_suffix(&button);
+    (row, button)
+}
+
 pub fn software(page: &gtk::Box, window: &gtk::ApplicationWindow, tabs: &gtk::Stack) {
     let entry = gtk::Entry::builder()
         .placeholder_text("Search apps or tasks…   / to focus")
@@ -148,7 +240,7 @@ pub fn software(page: &gtk::Box, window: &gtk::ApplicationWindow, tabs: &gtk::St
     run.set_visible(false);
     page.append(&run);
     let mut first: Option<gtk::ToggleButton> = None;
-    for (i, name) in ["All", "Pacman", "AUR", "Flatpak", "Installed"]
+    for (i, name) in ["All", "Pacman", "AUR", "Flatpak", "GitHub", "Installed"]
         .iter()
         .enumerate()
     {
@@ -212,49 +304,118 @@ pub fn software(page: &gtk::Box, window: &gtk::ApplicationWindow, tabs: &gtk::St
     let g = generation.clone();
     let st = states.clone();
     let actions = installs.clone();
+    let debounce_source = selected.clone();
     run.connect_clicked(move |_| {
-        let id = g.get().wrapping_add(1); g.set(id);
+        let id = g.get().wrapping_add(1);
+        g.set(id);
         let query = e.text().trim().to_owned();
-        while let Some(child) = l.first_child() { l.remove(&child); } actions.borrow_mut().clear();
-        if query.chars().count() < 2 { st.set_visible_child_name("empty"); s.set_text("Type at least two characters • / Search • Esc Clear"); return; }
-        st.set_visible_child_name("results"); s.set_text("Searching your software sources…");
-        let selected = selected.get(); let (tx, rx) = mpsc::channel();
-        let sources: Vec<_> = ["Pacman", "AUR", "Flatpak"].into_iter().enumerate().filter(|(i,_)| selected == 0 || selected == 4 || selected == i+1).map(|(_,source)| source).collect();
+        while let Some(child) = l.first_child() {
+            l.remove(&child);
+        }
+        actions.borrow_mut().clear();
+        if query.chars().count() < 2 {
+            st.set_visible_child_name("empty");
+            s.set_text("Type at least two characters • / Search • Esc Clear");
+            return;
+        }
+        st.set_visible_child_name("results");
+        s.set_text("Searching your software sources…");
+        let selected = selected.get();
+        let (tx, rx) = mpsc::channel();
+        let sources: Vec<_> = ["Pacman", "AUR", "Flatpak", "GitHub"]
+            .into_iter()
+            .enumerate()
+            .filter(|(i, source)| {
+                (selected == 0 || selected == 5 || selected == i + 1)
+                    && !(selected == 5 && *source == "GitHub")
+            })
+            .map(|(_, source)| source)
+            .collect();
         let mut remaining = sources.len();
         for source in sources {
-            let tx = tx.clone(); let query = query.clone();
+            let tx = tx.clone();
+            let query = query.clone();
             thread::spawn(move || {
-                let (mut packages, errors) = match search(&query, source) { Ok(p) => (p, vec![]), Err(e) => (vec![], vec![format!("{source}: {e}")]) };
-                if selected == 4 { packages.retain(|p| p.installed); }
-                packages.sort_by_key(|p| (!p.name.eq_ignore_ascii_case(&query), !p.name.to_lowercase().starts_with(&query.to_lowercase()), p.name.clone()));
-                let sizes = sizes(&packages); let _ = tx.send((packages, errors, sizes));
+                let (mut packages, errors) = match search(&query, source) {
+                    Ok(p) => (p, vec![]),
+                    Err(e) => (vec![], vec![format!("{source}: {e}")]),
+                };
+                if selected == 5 {
+                    packages.retain(|p| p.installed);
+                }
+                packages.sort_by_key(|p| {
+                    (
+                        !p.name.eq_ignore_ascii_case(&query),
+                        !p.name.to_lowercase().starts_with(&query.to_lowercase()),
+                        p.name.clone(),
+                    )
+                });
+                let sizes = sizes(&packages);
+                let _ = tx.send((packages, errors, sizes));
             });
         }
         drop(tx);
-        let mut total = 0usize; let mut shown = 0usize; let mut failures = Vec::new();
-        let l = l.clone(); let s = s.clone(); let g = g.clone(); let queue = queue.clone(); let queue_run = queue_run.clone(); let actions = actions.clone();
-        let history = history.clone(); let entry = e.clone();
+        let mut total = 0usize;
+        let mut shown = 0usize;
+        let mut failures = Vec::new();
+        let l = l.clone();
+        let s = s.clone();
+        let g = g.clone();
+        let queue = queue.clone();
+        let queue_run = queue_run.clone();
+        let actions = actions.clone();
+        let history = history.clone();
+        let entry = e.clone();
         glib::timeout_add_local(Duration::from_millis(50), move || {
-            if id != g.get() { return glib::ControlFlow::Break; }
-            let (packages, errors, sizes) = match rx.try_recv() { Ok(v) => v, Err(mpsc::TryRecvError::Empty) => return glib::ControlFlow::Continue, Err(_) => { s.set_text("Search stopped. Try again."); return glib::ControlFlow::Break; } };
-            remaining -= 1; total += packages.len(); failures.extend(errors);
-            s.set_text(&format!("{}{}{}{}", if total == 0 && remaining == 0 { "No matches. Try a different search.".into() } else { format!("{total} results") }, if total > 150 { " (showing 150)" } else { "" }, if remaining > 0 { " • Searching other sources…" } else { "" }, if failures.is_empty() { String::new() } else { format!(" • {}", failures.join(" • ")) }));
+            if id != g.get() {
+                return glib::ControlFlow::Break;
+            }
+            let (packages, errors, sizes) = match rx.try_recv() {
+                Ok(v) => v,
+                Err(mpsc::TryRecvError::Empty) => return glib::ControlFlow::Continue,
+                Err(_) => {
+                    s.set_text("Search stopped. Try again.");
+                    return glib::ControlFlow::Break;
+                }
+            };
+            remaining -= 1;
+            total += packages.len();
+            failures.extend(errors);
+            s.set_text(&format!(
+                "{}{}{}{}",
+                if total == 0 && remaining == 0 {
+                    "No matches. Try a different search.".into()
+                } else {
+                    format!("{total} results")
+                },
+                if total > 150 { " (showing 150)" } else { "" },
+                if remaining > 0 {
+                    " • Searching other sources…"
+                } else {
+                    ""
+                },
+                if failures.is_empty() {
+                    String::new()
+                } else {
+                    format!(" • {}", failures.join(" • "))
+                }
+            ));
             for p in packages.into_iter().take(150usize.saturating_sub(shown)) {
                 shown += 1;
-                let row = adw::ActionRow::builder().title(&p.name).use_markup(false).activatable(true).build(); row.set_title_lines(1); row.set_subtitle_lines(3); row.set_tooltip_text(Some(&format!("{} • {} • {}", p.name, p.version, p.remote)));
-                let origin = if p.source == "Pacman" { "Official" } else { &p.source };
-                row.set_subtitle(&format!("{}\n{origin} • {} • {}", p.description, sizes.get(&p.name).map(String::as_str).unwrap_or("Size unavailable"), if p.installed { "Installed" } else { "Not installed" }));
-                row.add_prefix(&icon(&p.name)); row.add_suffix(&store::checkbox(&p, &queue, &queue_run));
-                if let Some((url,title)) = package_page(&p) { let link = gtk::LinkButton::with_label(&url, "Details ↗"); link.set_valign(gtk::Align::Center); link.set_tooltip_text(Some(title)); row.add_suffix(&link); }
-                if p.source == "Flatpak" {
-                    let permissions = gtk::Button::from_icon_name("security-high-symbolic"); permissions.set_tooltip_text(Some("View Flatpak permissions")); permissions.set_valign(gtk::Align::Center);
-                    let id = p.name.clone(); permissions.connect_clicked(move |_| flatpak_permissions::open(&id, "--user")); row.add_suffix(&permissions);
-                }
-                let button = gtk::Button::with_label(if p.installed { "Installed" } else { "Install" }); button.set_valign(gtk::Align::Center); button.set_sensitive(!p.installed); button.add_css_class("suggested-action");
-                let status = s.clone(); button.connect_clicked(move |button| match install(&p) { Ok(()) => { button.set_sensitive(false); button.set_label("Check terminal"); toast(&format!("{} installation opened in terminal", p.name)); status.set_text("Review package and password prompts in your terminal. Search again when finished."); }, Err(e) => { status.set_text(&e); show_error(&e); } });
-                row.add_suffix(&button); actions.borrow_mut().push(button); l.append(&row);
+                let size = sizes
+                    .get(&p.name)
+                    .map(String::as_str)
+                    .unwrap_or("Size unavailable");
+                let (row, button) = result_row(p, size, &queue, &queue_run, &s);
+                actions.borrow_mut().push(button);
+                l.append(&row);
             }
-            if remaining == 0 { search_history::record(&query, &history, &entry); glib::ControlFlow::Break } else { glib::ControlFlow::Continue }
+            if remaining == 0 {
+                search_history::record(&query, &history, &entry);
+                glib::ControlFlow::Break
+            } else {
+                glib::ControlFlow::Continue
+            }
         });
     });
     let pending: Rc<RefCell<Option<glib::SourceId>>> = Rc::new(RefCell::new(None));
@@ -268,7 +429,11 @@ pub fn software(page: &gtk::Box, window: &gtk::ApplicationWindow, tabs: &gtk::St
         let b = b.clone();
         let pending_done = pending.clone();
         *pending.borrow_mut() = Some(glib::timeout_add_local_once(
-            Duration::from_millis(220),
+            Duration::from_millis(if matches!(debounce_source.get(), 0 | 4) {
+                900
+            } else {
+                220
+            }),
             move || {
                 pending_done.borrow_mut().take();
                 b.emit_clicked();
