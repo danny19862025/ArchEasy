@@ -90,11 +90,7 @@ pub(super) fn record(plan: &workflow::Plan, root: &Path, backup: &Path) -> Resul
     applied.managed_parents.clear();
     for (name, bytes) in &mut applied.files {
         *bytes = fs::read(root.join(&*name)).map_err(|e| e.to_string())?;
-        if !name.ends_with(".png") {
-            *bytes = String::from_utf8_lossy(bytes)
-                .replace(&root.to_string_lossy().to_string(), "__CONFIG_DIR__")
-                .into_bytes();
-        }
+        *bytes = substitute_text(bytes, &root.to_string_lossy(), "__CONFIG_DIR__");
     }
     let git = auto_commit(root, plan, backup);
     write_atomic(&backup.join("applied-version.json"), json!({"plan":applied.json(),"created":SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs(),"git":git}).to_string().as_bytes(), 0o600)
@@ -222,13 +218,7 @@ pub(super) fn current_plan(root: &Path, backups: &Path) -> Result<workflow::Plan
             ));
         }
         let bytes = fs::read(&path).map_err(|e| e.to_string())?;
-        let bytes = if name.ends_with(".png") {
-            bytes
-        } else {
-            String::from_utf8_lossy(&bytes)
-                .replace(&root.to_string_lossy().to_string(), "__CONFIG_DIR__")
-                .into_bytes()
-        };
+        let bytes = substitute_text(&bytes, &root.to_string_lossy(), "__CONFIG_DIR__");
         files.push((name, bytes));
     }
     let plan = workflow::Plan {

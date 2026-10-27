@@ -92,6 +92,41 @@ fn snapshot_rejects_external_paths_skips_links_and_preserves_originals() {
     );
 }
 #[test]
+fn snapshot_rejects_staging_overlap_before_creating_or_changing_directories() {
+    let fixture = Fixture::new();
+    let home = fixture.home();
+    let selected = home.join(".config/example");
+    let staging = selected.join("cache/cloud-staging");
+    let error = core::snapshot(&home, &[selected.clone()], &staging).unwrap_err();
+    assert!(error.contains("overlap"), "{error}");
+    assert!(!selected.join("cache").exists());
+
+    fs::create_dir_all(&staging).unwrap();
+    fs::set_permissions(&staging, fs::Permissions::from_mode(0o750)).unwrap();
+    fs::write(staging.join("old-backup"), b"keep me").unwrap();
+    for source in [&selected, &staging, &staging.join("old-backup")] {
+        let error = core::snapshot(&home, &[source.clone()], &staging).unwrap_err();
+        assert!(error.contains("overlap"), "{error}");
+    }
+    assert_eq!(
+        fs::metadata(&staging).unwrap().permissions().mode() & 0o777,
+        0o750
+    );
+    assert_eq!(fs::read(staging.join("old-backup")).unwrap(), b"keep me");
+    assert_eq!(fs::read_dir(&staging).unwrap().count(), 1);
+
+    let alias = fixture.0.join("stage-alias");
+    symlink(&selected, &alias).unwrap();
+    let error = core::snapshot(&home, &[selected.clone()], &alias.join("new/stage")).unwrap_err();
+    assert!(error.contains("overlap"), "{error}");
+    assert!(!selected.join("new").exists());
+
+    // A similarly named sibling is safe and must not be rejected as a prefix.
+    let sibling = selected.with_file_name("example-stage");
+    let snapshot = core::snapshot(&home, &[selected], &sibling).unwrap();
+    assert!(snapshot.files > 0);
+}
+#[test]
 fn local_cloud_roundtrip_preserves_backups_and_refuses_overwrites() {
     let fixture = Fixture::new();
     let client = fixture.client();

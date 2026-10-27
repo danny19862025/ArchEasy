@@ -338,6 +338,12 @@ fn save_backup(plan: &workflow::Plan, root: &Path, backups: &Path) -> Result<Pat
     archive::snapshot(&backup, root)?;
     Ok(backup)
 }
+fn substitute_text(bytes: &[u8], from: &str, to: &str) -> Vec<u8> {
+    match std::str::from_utf8(bytes) {
+        Ok(text) if !text.contains('\0') => text.replace(from, to).into_bytes(),
+        _ => bytes.to_vec(),
+    }
+}
 fn apply_saved(plan: &workflow::Plan, root: &Path, backup: &Path) -> Result<(), String> {
     conflicts::detach(root, backup, &plan.managed_parents)?;
     for (name, _) in &plan.files {
@@ -347,13 +353,7 @@ fn apply_saved(plan: &workflow::Plan, root: &Path, backup: &Path) -> Result<(), 
         }
     }
     for (name, bytes) in &plan.files {
-        let contents = if name.ends_with(".png") {
-            bytes.to_vec()
-        } else {
-            String::from_utf8_lossy(bytes)
-                .replace("__CONFIG_DIR__", &root.to_string_lossy())
-                .into_bytes()
-        };
+        let contents = substitute_text(bytes, "__CONFIG_DIR__", &root.to_string_lossy());
         if let Err(error) = write_atomic(&root.join(name), &contents, 0o600) {
             let rollback = restore_snapshot(backup, root);
             return Err(format!(

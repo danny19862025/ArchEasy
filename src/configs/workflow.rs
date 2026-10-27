@@ -231,14 +231,8 @@ pub(super) fn apply_reviewed(
     }
     apply_plan(plan, root, backups)
 }
-fn rendered(bytes: &[u8], name: &str, root: &Path) -> Vec<u8> {
-    if name.ends_with(".png") {
-        bytes.to_vec()
-    } else {
-        String::from_utf8_lossy(bytes)
-            .replace("__CONFIG_DIR__", &root.to_string_lossy())
-            .into_bytes()
-    }
+fn rendered(bytes: &[u8], _name: &str, root: &Path) -> Vec<u8> {
+    substitute_text(bytes, "__CONFIG_DIR__", &root.to_string_lossy())
 }
 fn content(state: &Value) -> String {
     match state["kind"].as_str() {

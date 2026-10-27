@@ -1,7 +1,9 @@
 """Portable snapshots: create a ZIP or verify/unpack into a new folder."""
 import hashlib
+import errno
 import json
 import os
+import shutil
 from pathlib import Path
 import stat
 import sys
@@ -87,7 +89,22 @@ def create(req):
             archive.writestr('README.txt', 'ArchEasy snapshot\n\nExtract restore-snapshot.py and run:\npython3 restore-snapshot.py restore snapshot.zip NEW_FOLDER\n\nFiles are verified and unpacked into NEW_FOLDER. Review home/ then copy desired files into your home. Existing live files are never changed by unpacking.\nOn Arch Linux, review and run: bash NEW_FOLDER/my-system.sh (if included).\nThis reinstalls current repository packages and restores bundled managed configs with rollback backups. Vendor/unavailable packages need their original sources.\nCustom apps need their source/binaries: include Projects, .local/bin, .local/share/applications and relevant app data when taking snapshots.\nLinks/special files are skipped. This ZIP may contain passwords/tokens; keep it private.\n')
             archive.writestr('manifest.json', json.dumps({'format': 'archeasy-snapshot-v1', 'created': time.strftime('%Y-%m-%dT%H:%M:%S%z'), 'selections': [str(p.relative_to(home)) for p in paths], 'entries': entries, 'bytes': total, 'skipped': skipped, 'apps': bool(req.get('script'))}, indent=2))
         stage.chmod(0o600)
-        os.link(stage, target)
+        try:
+            os.link(stage, target)
+        except OSError as error:
+            if error.errno not in (errno.EPERM, errno.EOPNOTSUPP, errno.ENOSYS, errno.EXDEV):
+                raise
+            # Some destination filesystems cannot hard-link. O_EXCL keeps the
+            # same no-overwrite guarantee, including existing symbolic links.
+            fd = os.open(target, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+            try:
+                with os.fdopen(fd, 'wb') as output, stage.open('rb') as source:
+                    shutil.copyfileobj(source, output)
+                    output.flush()
+                    os.fsync(output.fileno())
+            except BaseException:
+                target.unlink()
+                raise
     return f'Saved {target}: {len(entries)} entries, {total:,} bytes; skipped {skipped} links/special files.'
 
 

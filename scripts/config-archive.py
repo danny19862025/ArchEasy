@@ -61,11 +61,13 @@ else:
                 if path.stat().st_size > LIMIT:
                     raise ValueError('Config exceeds 8 MiB: ' + name)
                 data = path.read_bytes()
-                if not name.endswith('.png'):
-                    try:
-                        data = data.decode('utf-8').replace(str(root), '__CONFIG_DIR__').encode('utf-8')
-                    except UnicodeDecodeError:
-                        pass
+                try:
+                    text = data.decode('utf-8')
+                except UnicodeDecodeError:
+                    pass
+                else:
+                    if '\0' not in text:
+                        data = text.replace(str(root), '__CONFIG_DIR__').encode('utf-8')
                 total += len(data)
                 if total > LIMIT or len(files) >= 100:
                     raise ValueError('Portable config exceeds 8 MiB / 100 files')

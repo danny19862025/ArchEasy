@@ -1,11 +1,13 @@
 """Exercise real ZIP round trips and hostile archives, without installing packages."""
 import importlib.util
+import errno
 import json
 from pathlib import Path
 import stat
 import subprocess
 import tempfile
 import unittest
+from unittest import mock
 import zipfile
 
 HELPER = Path(__file__).resolve().parents[1]/'scripts/portable-snapshot.py'
@@ -64,6 +66,48 @@ class SnapshotTests(unittest.TestCase):
             req['destination'] = str(home/'files/backup.zip')
             with self.assertRaises(ValueError):
                 snapshot.create(req)
+
+    def test_no_hard_links_falls_back_without_overwriting_files_or_links(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source = root/'home/file'
+            source.parent.mkdir()
+            source.write_bytes(b'\xff\0binary')
+            req = self.request(root, [source])
+            target = root/'backup.zip'
+            for code in (errno.EOPNOTSUPP, errno.EPERM, errno.ENOSYS, errno.EXDEV):
+                with self.subTest(errno=code), mock.patch.object(snapshot.os, 'link', side_effect=OSError(code, 'unsupported')):
+                    snapshot.create(req)
+                    with zipfile.ZipFile(target) as archive:
+                        self.assertEqual(archive.read('home/file'), source.read_bytes())
+                    self.assertEqual(stat.S_IMODE(target.stat().st_mode), 0o600)
+                    original = target.read_bytes()
+                    with self.assertRaises(FileExistsError):
+                        snapshot.create(req)
+                    self.assertEqual(target.read_bytes(), original)
+                    target.unlink()
+                    target.symlink_to(root/'missing')
+                    with self.assertRaises(FileExistsError):
+                        snapshot.create(req)
+                    self.assertTrue(target.is_symlink())
+                    self.assertFalse((root/'missing').exists())
+                    target.unlink()
+
+    def test_fallback_copy_failure_removes_partial_archive(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source = root/'home/file'
+            source.parent.mkdir()
+            source.write_text('original')
+            def fail_copy(source, output):
+                output.write(b'partial')
+                raise OSError(errno.ENOSPC, 'full')
+            with mock.patch.object(snapshot.os, 'link', side_effect=OSError(errno.EOPNOTSUPP, 'unsupported')), mock.patch.object(snapshot.shutil, 'copyfileobj', side_effect=fail_copy):
+                with self.assertRaises(OSError):
+                    snapshot.create(self.request(root, [source]))
+            self.assertFalse((root/'backup.zip').exists())
+            self.assertEqual(list(root.glob('.archeasy-snapshot-*')), [])
+            self.assertEqual(source.read_text(), 'original')
 
     def test_tampering_traversal_links_and_manifest_mismatch(self):
         with tempfile.TemporaryDirectory() as tmp:

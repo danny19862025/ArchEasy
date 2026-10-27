@@ -84,5 +84,18 @@ class PortableRestoreTests(unittest.TestCase):
             self.assertNotEqual(result.returncode,0)
             self.assertEqual((root/'managed/config.fish').read_text(),'manager original')
 
+    def test_restore_preserves_binary_bytes_and_only_rebases_text(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            contents = {'app/font.ttf': b'\xff__CONFIG_DIR__\x80',
+                        'app/cache.db': b'\0__CONFIG_DIR__',
+                        'app/settings.conf': b'path=__CONFIG_DIR__/app'}
+            plan = {'files': [{'path': name, 'bytes': list(data)} for name, data in contents.items()]}
+            result = self.run_restore(root, plan)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            for name, original in contents.items():
+                expected = original.replace(b'__CONFIG_DIR__', str(root/'config').encode()) if name.endswith('.conf') else original
+                self.assertEqual((root/'config'/name).read_bytes(), expected)
+
 if __name__ == '__main__':
     unittest.main()

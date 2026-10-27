@@ -15,6 +15,74 @@ impl Drop for Temp {
     }
 }
 #[test]
+fn binary_configs_survive_apply_history_zip_export_and_restore() {
+    let temp = Temp::new();
+    let root = temp.0.join("config");
+    let backups = temp.0.join("backups");
+    let binary = b"\xff__CONFIG_DIR__\x80".to_vec();
+    let nul_binary = b"\0__CONFIG_DIR__".to_vec();
+    let plan = Plan::parse(&serde_json::json!({
+        "id":"binary-fixture", "name":"Binary fixture", "dependencies":[],
+        "files":[
+            {"path":"app/font.ttf", "bytes":binary},
+            {"path":"app/cache.db", "bytes":nul_binary},
+            {"path":"app/settings.conf", "bytes":b"path=__CONFIG_DIR__/app".to_vec()}
+        ]
+    }))
+    .unwrap();
+    let backup = apply_plan(&plan, &root, &backups).unwrap();
+    assert_eq!(fs::read(root.join("app/font.ttf")).unwrap(), binary);
+    assert_eq!(fs::read(root.join("app/cache.db")).unwrap(), nul_binary);
+    assert_eq!(
+        fs::read(root.join("app/settings.conf")).unwrap(),
+        format!("path={}/app", root.display()).as_bytes()
+    );
+    let current = history::current_plan(&root, &backups).unwrap();
+    let version = history::versions(&backups).remove(0).1;
+    for saved in [&current, &version] {
+        assert_eq!(
+            saved
+                .files
+                .iter()
+                .find(|(n, _)| n == "app/font.ttf")
+                .unwrap()
+                .1,
+            binary
+        );
+        assert_eq!(
+            saved
+                .files
+                .iter()
+                .find(|(n, _)| n == "app/cache.db")
+                .unwrap()
+                .1,
+            nul_binary
+        );
+        assert_eq!(
+            saved
+                .files
+                .iter()
+                .find(|(n, _)| n == "app/settings.conf")
+                .unwrap()
+                .1,
+            b"path=__CONFIG_DIR__/app"
+        );
+    }
+    let output = temp.0.join("portable.zip");
+    archive::export(&backups, &root, &output).unwrap();
+    let imported = archive::read(&output).unwrap();
+    let restored = temp.0.join("other-config");
+    apply_plan(&imported, &restored, &temp.0.join("other-backups")).unwrap();
+    assert_eq!(fs::read(restored.join("app/font.ttf")).unwrap(), binary);
+    assert_eq!(fs::read(restored.join("app/cache.db")).unwrap(), nul_binary);
+    assert_eq!(
+        fs::read(restored.join("app/settings.conf")).unwrap(),
+        format!("path={}/app", restored.display()).as_bytes()
+    );
+    restore_snapshot(&backup, &root).unwrap();
+    assert!(!root.join("app/font.ttf").exists());
+}
+#[test]
 fn failed_fish_syntax_or_startup_restores_entire_transaction() {
     for bad_fish in ["if true\n", "__archeasy_missing_startup_command__\n"] {
         let temp = Temp::new();

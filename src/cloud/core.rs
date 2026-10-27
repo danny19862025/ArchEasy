@@ -219,9 +219,44 @@ pub fn validate_source(home: &Path, path: &Path) -> Result<PathBuf, String> {
     }
     Ok(relative.to_path_buf())
 }
+// Resolve existing ancestors too, so a symlinked cache parent cannot hide an
+// overlap when the staging directory has not been created yet.
+fn resolved_staging(path: &Path) -> Result<PathBuf, String> {
+    match fs::canonicalize(path) {
+        Ok(path) => Ok(path),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            let absolute = if path.is_absolute() {
+                path.to_path_buf()
+            } else {
+                std::env::current_dir()
+                    .map_err(|e| e.to_string())?
+                    .join(path)
+            };
+            let parent = absolute.parent().ok_or("Invalid staging directory")?;
+            let name = absolute.file_name().ok_or("Invalid staging directory")?;
+            Ok(resolved_staging(parent)?.join(name))
+        }
+        Err(error) => Err(error.to_string()),
+    }
+}
 pub fn snapshot(home: &Path, sources: &[PathBuf], staging: &Path) -> Result<Snapshot, String> {
     if sources.is_empty() {
         return Err("Choose at least one config file or folder.".into());
+    }
+    let resolved_stage = resolved_staging(staging)?;
+    let mut selections = vec![];
+    for source in sources {
+        selections.push(
+            validate_source(home, source)?
+                .to_string_lossy()
+                .into_owned(),
+        );
+        let resolved_source = fs::canonicalize(source).map_err(|e| e.to_string())?;
+        if resolved_stage.starts_with(&resolved_source)
+            || resolved_source.starts_with(&resolved_stage)
+        {
+            return Err("Selected files and folders must not overlap the cloud staging folder. Choose a smaller config folder or a different staging location.".into());
+        }
     }
     fs::create_dir_all(staging).map_err(|e| e.to_string())?;
     fs::set_permissions(staging, fs::Permissions::from_mode(0o700)).map_err(|e| e.to_string())?;
@@ -236,13 +271,7 @@ pub fn snapshot(home: &Path, sources: &[PathBuf], staging: &Path) -> Result<Snap
         skipped: 0,
     };
     let mut pending = vec![];
-    let mut selections = vec![];
     for source in sources {
-        selections.push(
-            validate_source(home, source)?
-                .to_string_lossy()
-                .into_owned(),
-        );
         pending.push(source.clone());
     }
     let mut seen = BTreeSet::new();

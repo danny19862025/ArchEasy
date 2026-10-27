@@ -47,8 +47,13 @@ else:
             target = root/entry['path']
             target.parent.mkdir(parents=True, exist_ok=True)
             data = bytes(entry['bytes'])
-            if not entry['path'].endswith('.png'):
-                data = data.decode('utf-8').replace('__CONFIG_DIR__', str(root)).encode('utf-8')
+            try:
+                text = data.decode('utf-8')
+            except UnicodeDecodeError:
+                pass
+            else:
+                if '\0' not in text:
+                    data = text.replace('__CONFIG_DIR__', str(root)).encode('utf-8')
             temporary = target.with_name('.archeasy-restore-' + str(time.time_ns()))
             fd = os.open(temporary, os.O_WRONLY|os.O_CREAT|os.O_EXCL, 0o600)
             with os.fdopen(fd, 'wb') as stream: stream.write(data)
