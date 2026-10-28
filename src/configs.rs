@@ -667,6 +667,7 @@ pub fn page(parent: &gtk::ApplicationWindow) -> gtk::Box {
             .use_markup(false)
             .subtitle(preset.description)
             .build();
+        row.add_css_class("config-preset");
         row.set_subtitle_lines(2);
         row.add_prefix(&crate::ux::icon(preset.id));
         group.add(&row);
