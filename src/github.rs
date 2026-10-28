@@ -10,6 +10,26 @@ use std::{
 const API: &str = "https://api.github.com";
 const BUILD: &str = include_str!("../scripts/github-build.sh");
 type Cache = HashMap<String, (Instant, Vec<Package>)>;
+pub const FEATURED_REPO: &str = "danny19862025/ArchEasy";
+
+pub fn is_featured(package: &Package) -> bool {
+    package.source == "GitHub" && package.name.eq_ignore_ascii_case(FEATURED_REPO)
+}
+pub fn featured() -> Package {
+    Package {
+        name: FEATURED_REPO.into(),
+        version: "Featured".into(),
+        description:
+            "Danny’s ArchEasy · software browser, config presets and backups for Arch Linux".into(),
+        source: "GitHub".into(),
+        remote: String::new(),
+        installed: false,
+    }
+}
+pub fn add_featured(packages: &mut Vec<Package>) {
+    packages.retain(|p| !is_featured(p));
+    packages.insert(0, featured());
+}
 
 pub fn valid_repo(name: &str) -> bool {
     let parts: Vec<_> = name.split('/').collect();
@@ -196,6 +216,24 @@ mod tests {
         io::{Read, Write},
         net::TcpListener,
     };
+    #[test]
+    fn featured_repository_is_first_and_not_duplicated() {
+        let mut packages = vec![
+            featured(),
+            Package {
+                name: "other/repo".into(),
+                ..featured()
+            },
+        ];
+        add_featured(&mut packages);
+        add_featured(&mut packages);
+        assert_eq!(packages.len(), 2);
+        assert!(is_featured(&packages[0]));
+        assert_eq!(
+            super::super::package_page(&packages[0]).unwrap().0,
+            "https://github.com/danny19862025/ArchEasy"
+        );
+    }
 
     #[test]
     #[ignore = "uses the public GitHub API"]

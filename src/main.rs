@@ -457,6 +457,7 @@ window.archeasy { background: @theme_bg_color; color: @theme_fg_color; }
 .archeasy .card { background: alpha(@theme_fg_color, 0.06); border-radius: 14px; padding: 18px; }
 .archeasy .name { font-weight: 700; font-size: 17px; }
 .archeasy .config-preset .title { font-weight: 700; font-size: 17px; }
+.archeasy .featured-repository .title { font-weight: 700; font-size: 17px; }
 .archeasy .heading { font-weight: 700; font-size: 18px; }
 .archeasy .badge { font-weight: 700; }
 .archeasy .card label.deps-met { color: #16845f; }

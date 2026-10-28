@@ -28,6 +28,18 @@ pub fn undo_toast(title: &str, undo: impl Fn() + 'static) {
     });
 }
 pub fn icon(name: &str) -> gtk::Image {
+    if name.eq_ignore_ascii_case(github::FEATURED_REPO) {
+        let bytes = glib::Bytes::from_static(include_bytes!("../assets/archeasy.svg"));
+        let stream = gtk::gio::MemoryInputStream::from_bytes(&bytes);
+        if let Ok(pixbuf) =
+            gtk::gdk_pixbuf::Pixbuf::from_stream(&stream, gtk::gio::Cancellable::NONE)
+            && let Some(pixbuf) = pixbuf.scale_simple(32, 32, gtk::gdk_pixbuf::InterpType::Bilinear)
+        {
+            let image = gtk::Image::from_pixbuf(Some(&pixbuf));
+            image.set_widget_name("featured-archeasy-icon");
+            return image;
+        }
+    }
     let candidates: &[&str] = match name.to_lowercase().as_str() {
         "fish" => &["fish", "utilities-terminal-symbolic"],
         "ghostty" => &["com.mitchellh.ghostty", "utilities-terminal-symbolic"],
@@ -143,7 +155,14 @@ pub(super) fn result_row(
     } else {
         &p.source
     };
-    if p.source == "GitHub" {
+    if github::is_featured(&p) {
+        row.set_widget_name("featured-archeasy-repository");
+        row.add_css_class("featured-repository");
+        row.set_subtitle(&format!(
+            "{}\nGitHub • Featured • Danny’s repository",
+            p.description
+        ));
+    } else if p.source == "GitHub" {
         row.set_subtitle(&format!(
             "{}\nGitHub • {} • Root PKGBUILD",
             p.description, p.version
@@ -185,7 +204,9 @@ pub(super) fn result_row(
         permissions.connect_clicked(move |_| flatpak_permissions::open(&id, "--user"));
         row.add_suffix(&permissions);
     }
-    let button = gtk::Button::with_label(if p.installed {
+    let button = gtk::Button::with_label(if github::is_featured(&p) {
+        "Open repository"
+    } else if p.installed {
         "Installed"
     } else if p.source == "GitHub" {
         "Clone & Build"
@@ -197,6 +218,15 @@ pub(super) fn result_row(
     button.add_css_class("suggested-action");
     let status = status.clone();
     button.connect_clicked(move |button| {
+        if github::is_featured(&p) {
+            if let Err(error) = gtk::gio::AppInfo::launch_default_for_uri(
+                "https://github.com/danny19862025/ArchEasy",
+                None::<&gtk::gio::AppLaunchContext>,
+            ) {
+                status.set_text(&format!("Could not open repository: {error}"));
+            }
+            return;
+        }
         let button = button.clone();
         let p = p.clone();
         let status = status.clone();
@@ -319,6 +349,14 @@ pub fn software(page: &gtk::Box, window: &gtk::ApplicationWindow, tabs: &gtk::St
         }
         actions.borrow_mut().clear();
         if query.chars().count() < 2 {
+            if selected.get() == 4 {
+                let (row, button) = result_row(github::featured(), "", &queue, &queue_run, &s);
+                l.append(&row);
+                actions.borrow_mut().push(button);
+                st.set_visible_child_name("results");
+                s.set_text("Featured GitHub repository · type to search for more projects");
+                return;
+            }
             st.set_visible_child_name("empty");
             s.set_text("Type at least two characters • / Search • Esc Clear");
             return;
@@ -348,8 +386,12 @@ pub fn software(page: &gtk::Box, window: &gtk::ApplicationWindow, tabs: &gtk::St
                 if selected == 5 {
                     packages.retain(|p| p.installed);
                 }
+                if source == "GitHub" {
+                    github::add_featured(&mut packages);
+                }
                 packages.sort_by_key(|p| {
                     (
+                        !github::is_featured(p),
                         !p.name.eq_ignore_ascii_case(&query),
                         !p.name.to_lowercase().starts_with(&query.to_lowercase()),
                         p.name.clone(),

@@ -80,6 +80,32 @@ fn native_search_and_guided_flows() {
         .find_map(|w| w.clone().downcast::<gtk::Stack>().ok())
         .unwrap();
     assert_eq!(states.visible_child_name().as_deref(), Some("empty"));
+    let github = widgets
+        .iter()
+        .filter_map(|w| w.clone().downcast::<gtk::ToggleButton>().ok())
+        .find(|b| b.label().as_deref() == Some("GitHub"))
+        .unwrap();
+    github.set_active(true);
+    pump(Duration::from_millis(100));
+    let featured = list
+        .row_at_index(0)
+        .unwrap()
+        .downcast::<adw::ActionRow>()
+        .unwrap();
+    assert_eq!(featured.title(), github::FEATURED_REPO);
+    assert!(featured.subtitle().unwrap().contains("Featured"));
+    assert!(
+        descendants(&featured)
+            .iter()
+            .any(|w| w.widget_name() == "featured-archeasy-icon")
+    );
+    assert!(
+        descendants(&featured)
+            .iter()
+            .filter_map(|w| w.clone().downcast::<gtk::Button>().ok())
+            .any(|b| b.label().as_deref() == Some("Open repository"))
+    );
+    assert!(list.row_at_index(1).is_none());
     let pacman = widgets
         .iter()
         .filter_map(|w| w.clone().downcast::<gtk::ToggleButton>().ok())
@@ -421,6 +447,9 @@ fn native_search_and_guided_flows() {
         .find(|stack| stack.child_by_name("results").is_some())
         .unwrap();
     list.append(&github_row);
+    let (featured_row, _) =
+        ux::result_row(github::featured(), "", &queue, &queue_run, &card_status);
+    list.prepend(&featured_row);
     states.set_visible_child_name("results");
     pump(Duration::from_millis(150));
     if let Ok(path) = std::env::var("ARCHEASY_UI_SCREENSHOT") {

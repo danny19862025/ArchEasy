@@ -84,6 +84,8 @@ Search errors appear above the results. Install errors appear in a dialog. If a 
 
 ## GitHub builds
 
+Selecting **GitHub** shows Danny’s `danny19862025/ArchEasy` repository first, with its ArchEasy icon and an **Open repository** button. This featured suggestion stays above GitHub search matches and is available without an API request. Other results retain their verified **Clone & Build** action.
+
 The **GitHub** source searches the GitHub repository API with your query plus `PKGBUILD in:name,description,readme`. It checks the first 20 candidates for a root PKGBUILD and displays matching repositories with their description, star count, and GitHub page link. Repository search uses metadata, so repositories that never mention PKGBUILD may not be discovered; nested build recipes are excluded. Search results are cached for five minutes. GitHub results also appear under **All**; installed packages remain tracked by Pacman/AUR or Flatpak.
 
 **Clone & Build** opens the usual interactive terminal, clones into a fresh private `/tmp/archeasy-github-<owner>-<repo>.*` workspace, displays PKGBUILD for review, and runs `makepkg -si` after confirmation. Git and the `base-devel` build tools are required. The workspace remains available for inspection or another build. GitHub builds run individually and are not included in the package queue.
