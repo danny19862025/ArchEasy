@@ -230,7 +230,7 @@ pub(super) fn result_row(
         let button = button.clone();
         let p = p.clone();
         let status = status.clone();
-        confirm_upgrade(p.source == "Pacman", move || match install(&p) {
+        confirm_install(p.clone(), move || match install(&p) {
             Ok(()) => {
                 button.set_sensitive(false);
                 button.set_label("Check terminal");

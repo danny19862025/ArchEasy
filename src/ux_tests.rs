@@ -420,6 +420,57 @@ fn native_search_and_guided_flows() {
     );
     assert_eq!(build.label().as_deref(), Some("Clone & Build"));
     assert!(build.is_sensitive());
+    build.emit_clicked();
+    pump(Duration::from_millis(100));
+    let warning = gtk::Window::list_toplevels()
+        .into_iter()
+        .filter_map(|w| w.downcast::<gtk::MessageDialog>().ok())
+        .find(|w| w.is_visible())
+        .expect("GitHub build warning");
+    assert_eq!(
+        warning.text().as_deref(),
+        Some("Review this GitHub package before building")
+    );
+    assert!(
+        warning
+            .secondary_text()
+            .unwrap()
+            .contains("danny19862025/dotfiles")
+    );
+    assert!(warning.secondary_text().unwrap().contains("arbitrary code"));
+    descendants(&warning)
+        .into_iter()
+        .filter_map(|w| w.downcast::<gtk::Button>().ok())
+        .find(|b| b.label().as_deref() == Some("Cancel"))
+        .unwrap()
+        .emit_clicked();
+    pump(Duration::from_millis(100));
+    assert!(build.is_sensitive());
+    assert_eq!(build.label().as_deref(), Some("Clone & Build"));
+    let continued = std::rc::Rc::new(std::cell::Cell::new(false));
+    let result = continued.clone();
+    confirm_install(
+        Package {
+            name: "test/repo".into(),
+            ..github::featured()
+        },
+        move || result.set(true),
+    );
+    pump(Duration::from_millis(100));
+    assert!(!continued.get());
+    let warning = gtk::Window::list_toplevels()
+        .into_iter()
+        .filter_map(|w| w.downcast::<gtk::MessageDialog>().ok())
+        .find(|w| w.is_visible())
+        .unwrap();
+    descendants(&warning)
+        .into_iter()
+        .filter_map(|w| w.downcast::<gtk::Button>().ok())
+        .find(|b| b.label().as_deref() == Some("Review and continue"))
+        .unwrap()
+        .emit_clicked();
+    pump(Duration::from_millis(100));
+    assert!(continued.get());
     assert_eq!(github_row.title(), "danny19862025/dotfiles");
     assert!(
         github_row

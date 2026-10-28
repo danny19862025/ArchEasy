@@ -412,6 +412,23 @@ fn install(p: &Package) -> Result<(), String> {
     }.into_iter().map(String::from).collect();
     terminal(args)
 }
+fn confirm_install(package: Package, proceed: impl FnOnce() + 'static) {
+    if package.source != "GitHub" {
+        confirm_upgrade(package.source == "Pacman", proceed);
+        return;
+    }
+    let parent = gtk::gio::Application::default()
+        .and_downcast::<gtk::Application>()
+        .and_then(|app| app.active_window());
+    gtk::AlertDialog::builder()
+        .message("Review this GitHub package before building")
+        .detail(format!("Repository: {}\n\nGitHub build scripts can run arbitrary code with access to your files. A GitHub listing does not mean the package has been reviewed or is safe.\n\nOnly continue if you trust the source. Review PKGBUILD and any install scripts in the terminal before approving the build. Installation may request your administrator password.", package.name))
+        .buttons(["Cancel", "Review and continue"])
+        .cancel_button(0).default_button(0).build()
+        .choose(parent.as_ref(), gtk::gio::Cancellable::NONE, move |response| {
+            if response == Ok(1) { proceed(); }
+        });
+}
 fn label(text: &str, class: &str) -> gtk::Label {
     let l = gtk::Label::new(Some(text));
     l.set_xalign(0.0);
