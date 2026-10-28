@@ -87,7 +87,13 @@ fn native_search_and_guided_flows() {
         .unwrap();
     github.set_active(true);
     pump(Duration::from_millis(100));
-    assert!(github.child().unwrap().is::<gtk::Image>());
+    assert!(descendants(&github).iter().any(|w| w.is::<gtk::Image>()));
+    assert!(
+        descendants(&github)
+            .iter()
+            .filter_map(|w| w.clone().downcast::<gtk::Label>().ok())
+            .any(|l| l.text() == "GitHub")
+    );
     assert!(
         list.row_at_index(0).is_none(),
         "An empty GitHub query must not inject ArchEasy"
@@ -99,6 +105,7 @@ fn native_search_and_guided_flows() {
         .clone()
         .downcast::<gtk::LinkButton>()
         .unwrap();
+    assert!(descendants(&profile).iter().any(|w| w.is::<gtk::Image>()));
     assert_eq!(
         profile.uri(),
         "https://github.com/danny19862025?tab=repositories"
@@ -106,7 +113,7 @@ fn native_search_and_guided_flows() {
     let pacman = widgets
         .iter()
         .filter_map(|w| w.clone().downcast::<gtk::ToggleButton>().ok())
-        .find(|b| b.label().as_deref() == Some("Pacman"))
+        .find(|b| b.widget_name() == "source-pacman")
         .unwrap();
     pacman.set_active(true);
     entry.set_text("fire");
@@ -131,7 +138,7 @@ fn native_search_and_guided_flows() {
     let installed = widgets
         .iter()
         .filter_map(|w| w.clone().downcast::<gtk::ToggleButton>().ok())
-        .find(|b| b.label().as_deref() == Some("Installed"))
+        .find(|b| b.widget_name() == "source-installed")
         .unwrap();
     installed.set_active(true);
     pump(Duration::from_millis(600));

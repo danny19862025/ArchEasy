@@ -249,6 +249,38 @@ pub(super) fn result_row(
     (row, button)
 }
 
+fn source_content(name: &str) -> gtk::Box {
+    let svg: Option<&'static [u8]> = match name {
+        "GitHub" | "danny19862025" => Some(include_bytes!("../assets/github.svg")),
+        "Pacman" => Some(include_bytes!("../assets/archlinux-logo.svg")),
+        _ => None,
+    };
+    let image = svg
+        .and_then(|svg| {
+            let stream = gtk::gio::MemoryInputStream::from_bytes(&glib::Bytes::from_static(svg));
+            gtk::gdk_pixbuf::Pixbuf::from_stream(&stream, gtk::gio::Cancellable::NONE)
+                .ok()
+                .and_then(|p| p.scale_simple(16, 16, gtk::gdk_pixbuf::InterpType::Bilinear))
+                .map(|p| gtk::Image::from_pixbuf(Some(&p)))
+        })
+        .unwrap_or_else(|| {
+            gtk::Image::from_icon_name(match name {
+                "All" => "view-grid-symbolic",
+                "AUR" => "system-software-install-symbolic",
+                "Flatpak" => "package-x-generic-symbolic",
+                "Installed" => "emblem-ok-symbolic",
+                _ => "application-x-executable-symbolic",
+            })
+        });
+    image.set_pixel_size(16);
+    image.set_widget_name(&format!("source-icon-{}", name.to_lowercase()));
+    let content = gtk::Box::new(gtk::Orientation::Horizontal, 6);
+    content.set_halign(gtk::Align::Center);
+    content.append(&image);
+    content.append(&gtk::Label::new(Some(name)));
+    content
+}
+
 pub fn software(page: &gtk::Box, window: &gtk::ApplicationWindow, tabs: &gtk::Stack) {
     let entry = gtk::Entry::builder()
         .placeholder_text("Search apps or tasks…   / to focus")
@@ -280,19 +312,14 @@ pub fn software(page: &gtk::Box, window: &gtk::ApplicationWindow, tabs: &gtk::St
         .enumerate()
     {
         let chip = gtk::ToggleButton::with_label(name);
-        if *name == "GitHub" {
-            let bytes = glib::Bytes::from_static(include_bytes!("../assets/github.svg"));
-            let stream = gtk::gio::MemoryInputStream::from_bytes(&bytes);
-            let image = gtk::gdk_pixbuf::Pixbuf::from_stream(&stream, gtk::gio::Cancellable::NONE)
-                .ok()
-                .and_then(|p| p.scale_simple(20, 20, gtk::gdk_pixbuf::InterpType::Bilinear))
-                .map(|p| gtk::Image::from_pixbuf(Some(&p)))
-                .unwrap_or_else(|| gtk::Image::from_icon_name("system-search-symbolic"));
-            chip.set_child(Some(&image));
-            chip.set_widget_name("github-source");
-            chip.set_tooltip_text(Some("Search GitHub"));
-            chip.update_property(&[gtk::accessible::Property::Label("GitHub")]);
-        }
+        chip.set_child(Some(&source_content(name)));
+        chip.set_widget_name(&if *name == "GitHub" {
+            "github-source".into()
+        } else {
+            format!("source-{}", name.to_lowercase())
+        });
+        chip.set_tooltip_text(Some(&format!("Search {name}")));
+        chip.update_property(&[gtk::accessible::Property::Label(name)]);
         chip.add_css_class("pill");
         chip.add_css_class("filter-chip");
         if let Some(first) = &first {
@@ -315,6 +342,10 @@ pub fn software(page: &gtk::Box, window: &gtk::ApplicationWindow, tabs: &gtk::St
         "https://github.com/danny19862025?tab=repositories",
         "danny19862025",
     );
+    profile.set_child(Some(&source_content("danny19862025")));
+    profile.update_property(&[gtk::accessible::Property::Label(
+        "danny19862025 GitHub repositories",
+    )]);
     profile.set_widget_name("danny-github-repositories");
     profile.set_tooltip_text(Some("Open Danny’s GitHub repositories"));
     filters.append(&profile);
