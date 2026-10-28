@@ -10,11 +10,17 @@ struct Installed {
     scope: Option<&'static str>,
 }
 impl Installed {
-    fn removal_args(&self) -> Vec<String> {
+    fn removal_args(&self, clean: bool) -> Vec<String> {
         if let Some(scope) = self.scope {
             vec!["flatpak", "uninstall", scope, "--", &self.id]
         } else {
-            vec!["sudo", "pacman", "-R", "--", &self.id]
+            vec![
+                "sudo",
+                "pacman",
+                if clean { "-Rns" } else { "-R" },
+                "--",
+                &self.id,
+            ]
         }
         .into_iter()
         .map(str::to_owned)
@@ -407,7 +413,11 @@ pub fn page() -> gtk::Box {
                 let remove = gtk::Button::with_label("Remove");
                 remove.set_valign(gtk::Align::Center);
                 let status = status.clone();
-                remove.connect_clicked(move |_| match terminal(package.removal_args()) {
+                let clean = gtk::CheckButton::with_label("Also remove unused dependencies and package configs (-Rns)");
+                clean.set_tooltip_text(Some("Also removes unneeded dependencies and disables .pacsave backups for modified package config files. Review Pacman's transaction before confirming."));
+                clean.set_visible(package.scope.is_none());
+                info.append(&clean);
+                remove.connect_clicked(move |_| match terminal(package.removal_args(clean.is_active())) {
                     Ok(()) => status.set_text("Review the removal in your terminal, then refresh this list."),
                     Err(e) => status.set_text(&e),
                 });
@@ -524,11 +534,11 @@ mod tests {
         assert_eq!(native.len(), 1);
         assert_eq!(foreign[0].source, 1);
         assert_eq!(
-            native[0].removal_args(),
+            native[0].removal_args(false),
             ["sudo", "pacman", "-R", "--", "firefox"]
         );
         assert_eq!(
-            user[0].removal_args(),
+            user[0].removal_args(false),
             [
                 "flatpak",
                 "uninstall",
@@ -537,7 +547,11 @@ mod tests {
                 "org.mozilla.firefox"
             ]
         );
-        assert_eq!(system[0].removal_args()[2], "--system");
+        assert_eq!(
+            native[0].removal_args(true),
+            ["sudo", "pacman", "-Rns", "--", "firefox"]
+        );
+        assert_eq!(system[0].removal_args(true)[2], "--system");
         assert!(parse_flatpaks("--bad\tBad\t1", "--user").is_empty());
     }
 }

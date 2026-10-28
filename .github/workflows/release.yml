@@ -15,7 +15,7 @@ jobs:
     container: archlinux:base-devel
     steps:
       - name: Install build dependencies
-        run: pacman -Syu --noconfirm --needed git rust gtk4 libadwaita fontconfig pkgconf github-cli lua python rclone fish
+        run: pacman -Syu --noconfirm --needed git rust gtk4 libadwaita fontconfig pkgconf github-cli lua python rclone fish xorg-server-xvfb xorg-xauth dbus
       - uses: actions/checkout@v4
         with:
           ref: ${{ inputs.tag || github.ref }}
@@ -33,8 +33,13 @@ jobs:
           runuser -u nobody -- python tests/setup_store_smoke.py
           runuser -u nobody -- python tests/snapshot_smoke.py
           runuser -u nobody -- python tests/maintenance_smoke.py
+          runuser -u nobody -- python tests/github_build_smoke.py
           luac -p presets/hypr/hyprland.lua
           lua tests/validate-hyprland.lua presets/hypr/hyprland.lua
+      - name: Isolated graphical tests (software rendering)
+        run: |
+          chmod -R a+rX target
+          runuser -u nobody -- env ARCHEASY_PREBUILT_TESTS=1 GDK_BACKEND=x11 GSK_RENDERER=cairo LIBGL_ALWAYS_SOFTWARE=1 dbus-run-session -- xvfb-run -a python tests/native_ui_smoke.py
       - run: bash scripts/package-release.sh
       - name: Publish binary and checksums
         env:

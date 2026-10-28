@@ -196,19 +196,24 @@ pub(super) fn result_row(
     button.set_sensitive(!p.installed);
     button.add_css_class("suggested-action");
     let status = status.clone();
-    button.connect_clicked(move |button| match install(&p) {
-        Ok(()) => {
-            button.set_sensitive(false);
-            button.set_label("Check terminal");
-            toast(&format!("{} installation opened in terminal", p.name));
-            status.set_text(
+    button.connect_clicked(move |button| {
+        let button = button.clone();
+        let p = p.clone();
+        let status = status.clone();
+        confirm_upgrade(p.source == "Pacman", move || match install(&p) {
+            Ok(()) => {
+                button.set_sensitive(false);
+                button.set_label("Check terminal");
+                toast(&format!("{} installation opened in terminal", p.name));
+                status.set_text(
                 "Review package and password prompts in your terminal. Search again when finished.",
             );
-        }
-        Err(e) => {
-            status.set_text(&e);
-            show_error(&e);
-        }
+            }
+            Err(e) => {
+                status.set_text(&e);
+                show_error(&e);
+            }
+        });
     });
     row.add_suffix(&button);
     (row, button)

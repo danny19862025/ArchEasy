@@ -67,6 +67,26 @@ class SnapshotTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 snapshot.create(req)
 
+    def test_sensitive_descendants_are_excluded_and_policy_matches_cloud(self):
+        policy = json.loads((HELPER.parent.parent/'data/backup-exclusions.json').read_text())
+        self.assertEqual([str(p) for p in snapshot.EXCLUDED], policy)
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            config = root/'home/.config'
+            for name in ('google-chrome/Default/Cookies', 'rclone/rclone.conf', 'kitty/kitty.conf'):
+                path = config/name
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text('fixture')
+            ssh = root/'home/.ssh'
+            ssh.mkdir()
+            (ssh/'id_ed25519').write_text('private')
+            snapshot.create(self.request(root, [config, ssh]))
+            with zipfile.ZipFile(root/'backup.zip') as archive:
+                names = archive.namelist()
+                self.assertIn('home/.config/kitty/kitty.conf', names)
+                self.assertFalse(any('google-chrome' in n or '/rclone' in n or '/.ssh' in n for n in names))
+                self.assertEqual(json.loads(archive.read('manifest.json'))['skipped'], 3)
+
     def test_no_hard_links_falls_back_without_overwriting_files_or_links(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

@@ -246,11 +246,11 @@ pub fn snapshot(home: &Path, sources: &[PathBuf], staging: &Path) -> Result<Snap
     let resolved_stage = resolved_staging(staging)?;
     let mut selections = vec![];
     for source in sources {
-        selections.push(
-            validate_source(home, source)?
-                .to_string_lossy()
-                .into_owned(),
-        );
+        let relative = validate_source(home, source)?;
+        if crate::backup_privacy::excluded(&relative) {
+            return Err("SSH/GPG keys, credentials and browser profiles are excluded from unencrypted backups.".into());
+        }
+        selections.push(relative.to_string_lossy().into_owned());
         let resolved_source = fs::canonicalize(source).map_err(|e| e.to_string())?;
         if resolved_stage.starts_with(&resolved_source)
             || resolved_source.starts_with(&resolved_stage)
@@ -291,6 +291,10 @@ pub fn snapshot(home: &Path, sources: &[PathBuf], staging: &Path) -> Result<Snap
             continue;
         }
         let relative = validate_source(home, &source)?;
+        if crate::backup_privacy::excluded(&relative) {
+            snapshot.skipped += 1;
+            continue;
+        }
         let target = snapshot.path.join("files").join(relative);
         if meta.is_dir() {
             fs::create_dir_all(&target).map_err(|e| e.to_string())?;
@@ -344,7 +348,10 @@ pub fn suggestions(home: &Path, config: &Path) -> Vec<PathBuf> {
         .flatten()
         .filter_map(Result::ok)
         .map(|e| e.path())
-        .filter(|p| p.file_name().is_none_or(|n| n != "rclone") && validate_source(home, p).is_ok())
+        .filter(|p| {
+            validate_source(home, p)
+                .is_ok_and(|relative| !crate::backup_privacy::excluded(&relative))
+        })
         .collect();
     for name in [
         ".bashrc",

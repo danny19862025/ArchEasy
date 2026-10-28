@@ -13,6 +13,7 @@ trap 'rm -rf -- "$stage"' EXIT
 mkdir -p "$stage/$name/assets" "$stage/$name/scripts"
 install -m755 target/release/archeasy "$stage/$name/archeasy"
 install -m644 LICENSE README.md "$stage/$name/"
+cp -R docs "$stage/$name/docs"
 install -m644 assets/archeasy.desktop assets/archeasy.svg assets/AppCleaner-LICENSE assets/Octicons-LICENSE "$stage/$name/assets/"
 mkdir -p "$stage/$name/assets/fonts"
 install -m644 assets/fonts/Ribeye-Regular.ttf assets/fonts/Ribeye-OFL.txt "$stage/$name/assets/fonts/"

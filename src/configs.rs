@@ -3,6 +3,7 @@ mod community;
 mod conflicts;
 mod history;
 mod previews;
+mod secrets;
 mod sharing;
 mod workflow;
 #[cfg(test)]

@@ -1,5 +1,50 @@
 use super::*;
 use serde_json::{Value, json};
+fn pinned_raw_url(entry: &Value) -> Result<String, String> {
+    let url = entry["url"].as_str().ok_or("Missing community URL")?;
+    let path = url
+        .strip_prefix("https://github.com/")
+        .ok_or("Expected a GitHub file URL")?;
+    let parts: Vec<_> = path.split('/').collect();
+    if parts.len() < 5
+        || parts[2] != "blob"
+        || parts.iter().any(|p| {
+            p.is_empty()
+                || *p == "."
+                || *p == ".."
+                || !p
+                    .bytes()
+                    .all(|c| c.is_ascii_alphanumeric() || b"-_.".contains(&c))
+        })
+    {
+        return Err("Invalid GitHub file URL".into());
+    }
+    let commit = entry["commit"].as_str().unwrap_or(parts[3]);
+    if commit.len() != 40 || !commit.bytes().all(|c| c.is_ascii_hexdigit()) {
+        return Err("Community file entries need a full 40-character commit SHA. Pin the catalog entry before downloading.".into());
+    }
+    Ok(format!(
+        "https://raw.githubusercontent.com/{}/{}/{}/{}",
+        parts[0],
+        parts[1],
+        commit,
+        parts[4..].join("/")
+    ))
+}
+fn verify_plan_hash(entry: &Value, plan: workflow::Plan) -> Result<workflow::Plan, String> {
+    let expected = entry["sha256"]
+        .as_str()
+        .ok_or("Community Gist/JSON entries need a sha256 of the canonical imported plan JSON")?;
+    let actual = glib::compute_checksum_for_data(
+        glib::ChecksumType::Sha256,
+        plan.json().to_string().as_bytes(),
+    )
+    .ok_or("Checksum unavailable")?;
+    if !actual.as_str().eq_ignore_ascii_case(expected) {
+        return Err("Community preset checksum mismatch; nothing was saved or applied.".into());
+    }
+    Ok(plan)
+}
 pub(super) fn catalog() -> Vec<Value> {
     let path = glib::user_config_dir().join("archeasy/community.json");
     let text = fs::metadata(&path)
@@ -29,33 +74,13 @@ pub(super) fn download(entry: &Value) -> Result<workflow::Plan, String> {
     }
     let url = entry["url"].as_str().ok_or("Missing community URL")?;
     if url.starts_with("https://gist.github.com/") {
-        return sharing::fetch_url(url);
+        if entry["sha256"].as_str().is_none() {
+            return Err("Pin this community Gist with a sha256 before downloading.".into());
+        }
+        return verify_plan_hash(entry, sharing::fetch_url(url)?);
     }
     if let Some(target) = entry["target"].as_str() {
-        let path = url
-            .strip_prefix("https://github.com/")
-            .ok_or("Community source must be an HTTPS GitHub file or Gist URL")?;
-        let parts: Vec<_> = path.split('/').collect();
-        if parts.len() < 5
-            || parts[2] != "blob"
-            || parts.iter().any(|p| {
-                p.is_empty()
-                    || *p == "."
-                    || *p == ".."
-                    || !p
-                        .bytes()
-                        .all(|c| c.is_ascii_alphanumeric() || b"-_.".contains(&c))
-            })
-        {
-            return Err("Invalid GitHub file URL".into());
-        }
-        let raw = format!(
-            "https://raw.githubusercontent.com/{}/{}/{}/{}",
-            parts[0],
-            parts[1],
-            parts[3],
-            parts[4..].join("/")
-        );
+        let raw = pinned_raw_url(entry)?;
         let text = super::super::output(
             "curl",
             &[
@@ -94,7 +119,44 @@ pub(super) fn download(entry: &Value) -> Result<workflow::Plan, String> {
             &json!({"id":entry["id"],"name":entry["name"],"files":files,"dependencies":entry["dependencies"]}),
         );
     }
-    sharing::fetch_url(url)
+    if entry["sha256"].as_str().is_none() {
+        return Err("Pin this community JSON preset with a sha256 before downloading.".into());
+    }
+    verify_plan_hash(entry, sharing::fetch_url(url)?)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn catalog_downloads_are_immutable_and_hash_mismatches_fail() {
+        let sha = "43098316202b84d6a71f71aaf8360f102f4d3f1a";
+        let mut entry = json!({"url":"https://github.com/owner/repo/blob/main/theme.conf"});
+        assert!(pinned_raw_url(&entry).is_err());
+        entry["commit"] = json!(sha);
+        assert_eq!(
+            pinned_raw_url(&entry).unwrap(),
+            format!("https://raw.githubusercontent.com/owner/repo/{sha}/theme.conf")
+        );
+        let plan = workflow::Plan::builtin(&PRESETS[0]);
+        assert!(verify_plan_hash(&entry, plan.clone()).is_err());
+        entry["sha256"] = json!("0".repeat(64));
+        assert!(verify_plan_hash(&entry, plan.clone()).is_err());
+        entry["sha256"] = json!(
+            glib::compute_checksum_for_data(
+                glib::ChecksumType::Sha256,
+                plan.json().to_string().as_bytes()
+            )
+            .unwrap()
+            .as_str()
+        );
+        assert!(verify_plan_hash(&entry, plan).is_ok());
+        let entries: Vec<Value> =
+            serde_json::from_str(include_str!("../../presets/community.json")).unwrap();
+        for entry in entries.iter().filter(|e| !e["target"].is_null()) {
+            assert!(pinned_raw_url(entry).is_ok());
+        }
+    }
 }
 pub(super) fn button(
     bar: &gtk::FlowBox,

@@ -133,6 +133,7 @@ pub(super) fn publish(
     program: &Path,
     staging: &Path,
 ) -> Result<String, String> {
+    super::secrets::check(plan)?;
     let (_stage, files) = export_files(plan, staging)?;
     let mut command = std::process::Command::new(program);
     command
@@ -261,6 +262,10 @@ pub(super) fn export_dialog(parent: &gtk::ApplicationWindow, plan: Plan) {
             return;
         }
         let public = public.is_active();
+        if let Err(error) = super::secrets::check(&plan) {
+            status.set_text(&error);
+            return;
+        }
         let repo = repository.text().trim().to_owned();
         let plan = plan.clone();
         let program = gh_program();
@@ -531,6 +536,7 @@ pub(super) fn fetch_url_with(url: &str, program: &Path) -> Result<Plan, String> 
     Err("Use an HTTPS gist.github.com or github.com preset URL.".into())
 }
 fn publish_repo(plan: &Plan, repo: &str) -> Result<String, String> {
+    super::secrets::check(plan)?;
     let parts: Vec<_> = repo.split('/').collect();
     if parts.len() != 2 || !parts.iter().all(|p| github_part(p)) {
         return Err("Enter an existing repository as owner/repo.".into());

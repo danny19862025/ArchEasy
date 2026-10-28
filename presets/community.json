@@ -1,24 +1,30 @@
 [
   {
-    "id":"catppuccin-mocha-kitty",
-    "name":"Catppuccin Mocha for Kitty",
-    "description":"Official Catppuccin dark palette. Adds an include to your existing Kitty config.",
-    "url":"https://github.com/catppuccin/kitty/blob/main/themes/mocha.conf",
-    "target":"kitty/archeasy-community.conf",
-    "dependencies":["kitty"]
+    "id": "catppuccin-mocha-kitty",
+    "name": "Catppuccin Mocha for Kitty",
+    "description": "Official Catppuccin dark palette. Adds an include to your existing Kitty config.",
+    "url": "https://github.com/catppuccin/kitty/blob/43098316202b84d6a71f71aaf8360f102f4d3f1a/themes/mocha.conf",
+    "target": "kitty/archeasy-community.conf",
+    "dependencies": [
+      "kitty"
+    ],
+    "commit": "43098316202b84d6a71f71aaf8360f102f4d3f1a"
   },
   {
-    "id":"catppuccin-latte-kitty",
-    "name":"Catppuccin Latte for Kitty",
-    "description":"Official Catppuccin light palette. Adds an include to your existing Kitty config.",
-    "url":"https://github.com/catppuccin/kitty/blob/main/themes/latte.conf",
-    "target":"kitty/archeasy-community.conf",
-    "dependencies":["kitty"]
+    "id": "catppuccin-latte-kitty",
+    "name": "Catppuccin Latte for Kitty",
+    "description": "Official Catppuccin light palette. Adds an include to your existing Kitty config.",
+    "url": "https://github.com/catppuccin/kitty/blob/43098316202b84d6a71f71aaf8360f102f4d3f1a/themes/latte.conf",
+    "target": "kitty/archeasy-community.conf",
+    "dependencies": [
+      "kitty"
+    ],
+    "commit": "43098316202b84d6a71f71aaf8360f102f4d3f1a"
   },
   {
-    "id":"danny-hyprland",
-    "name":"Danny’s Hyprland desktop",
-    "description":"Bundled desktop preset: rounded windows, gaps, blue/pink borders and companion tools.",
-    "builtin":"hyprland"
+    "id": "danny-hyprland",
+    "name": "Danny’s Hyprland desktop",
+    "description": "Bundled desktop preset: rounded windows, gaps, blue/pink borders and companion tools.",
+    "builtin": "hyprland"
   }
 ]

@@ -1,6 +1,7 @@
 mod about;
 mod appcleaner;
 mod appearance;
+mod backup_privacy;
 mod cloud;
 mod configs;
 mod custom_theme;
@@ -232,7 +233,13 @@ fn terminal_options(name: &str) -> &[&str] {
         "kitty" => &["--hold"],
         "gnome-terminal" => &["--"],
         "xfce4-terminal" => &["--hold", "-x"],
-        _ => &["-hold", "-e"],
+        "xdg-terminal-exec" => &["--"],
+        "ghostty" => &["-e"],
+        "foot" => &["--hold", "--"],
+        "alacritty" => &["--hold", "-e"],
+        "wezterm" => &["start", "--always-new-process", "--"],
+        "xterm" => &["-hold", "-e"],
+        _ => &["-e"],
     }
 }
 // A successful spawn does not mean a terminal window actually opened. Check
@@ -241,8 +248,21 @@ fn launch_terminal(args: &[String], terminals: &[&str]) -> Result<(), String> {
     use std::io::Read;
     let mut errors = Vec::new();
     for name in terminals {
-        let mut child = match Command::new(name)
-            .args(terminal_options(name))
+        let command = match glib::shell_parse_argv(name) {
+            Ok(command) if !command.is_empty() => command,
+            _ => {
+                errors.push(format!("Invalid terminal command: {name}"));
+                continue;
+            }
+        };
+        let executable = command[0].to_string_lossy();
+        let basename = std::path::Path::new(executable.as_ref())
+            .file_name()
+            .and_then(|s| s.to_str())
+            .unwrap_or(&executable);
+        let mut child = match Command::new(&command[0])
+            .args(&command[1..])
+            .args(terminal_options(basename))
             .args(args)
             .stdout(Stdio::null())
             .stderr(Stdio::piped())
@@ -295,22 +315,14 @@ fn launch_terminal(args: &[String], terminals: &[&str]) -> Result<(), String> {
     ))
 }
 fn terminal(args: Vec<String>) -> Result<(), String> {
-    let terminals: Vec<_> = [
-        "konsole",
-        "kitty",
-        "gnome-terminal",
-        "xfce4-terminal",
-        "xterm",
-    ]
-    .into_iter()
-    .filter(|p| available(p))
-    .collect();
+    let terminals = terminal_candidates(std::env::var("TERMINAL").ok().as_deref(), available);
     if terminals.is_empty() {
-        return Err("Install a supported terminal: Konsole, Kitty, GNOME Terminal, Xfce Terminal, or xterm.".into());
+        return Err("Set TERMINAL or install xdg-terminal-exec, Ghostty, foot, Alacritty, WezTerm, Konsole, Kitty, GNOME Terminal, Xfce Terminal, or xterm.".into());
     }
     let (tx, rx) = mpsc::channel();
     thread::spawn(move || {
-        let _ = tx.send(launch_terminal(&args, &terminals));
+        let names: Vec<_> = terminals.iter().map(String::as_str).collect();
+        let _ = tx.send(launch_terminal(&args, &names));
     });
     glib::timeout_add_local(Duration::from_millis(100), move || match rx.try_recv() {
         Ok(Err(error)) => {
@@ -321,6 +333,35 @@ fn terminal(args: Vec<String>) -> Result<(), String> {
         Err(mpsc::TryRecvError::Empty) => glib::ControlFlow::Continue,
     });
     Ok(())
+}
+fn terminal_candidates(preferred: Option<&str>, has: impl Fn(&str) -> bool) -> Vec<String> {
+    let mut terminals = Vec::new();
+    if let Some(preferred) = preferred
+        && let Ok(args) = glib::shell_parse_argv(preferred)
+        && let Some(program) = args.first()
+        && has(&program.to_string_lossy())
+    {
+        terminals.push(preferred.to_owned());
+    }
+    terminals.extend(
+        [
+            "xdg-terminal-exec",
+            "ghostty",
+            "foot",
+            "alacritty",
+            "wezterm",
+            "konsole",
+            "kitty",
+            "gnome-terminal",
+            "xfce4-terminal",
+            "xterm",
+        ]
+        .into_iter()
+        .filter(|p| has(p))
+        .map(str::to_owned),
+    );
+    terminals.dedup();
+    terminals
 }
 const SYSTEM_UPDATE_SCRIPT: &str = include_str!("../scripts/system-update.sh");
 fn system_update(snapshot: &str) -> Result<(), String> {
@@ -339,6 +380,23 @@ fn system_update(snapshot: &str) -> Result<(), String> {
         helper.into(),
         snapshot.into(),
     ])
+}
+fn confirm_upgrade(required: bool, proceed: impl FnOnce() + 'static) {
+    if !required {
+        proceed();
+        return;
+    }
+    let parent = gtk::gio::Application::default()
+        .and_downcast::<gtk::Application>()
+        .and_then(|app| app.active_window());
+    gtk::AlertDialog::builder()
+        .message("This will upgrade your whole system")
+        .detail("Installing this selection refreshes Arch repositories and runs a full system upgrade before installing packages. Review all changes and password prompts in the terminal.")
+        .buttons(["Cancel", "Upgrade and install"])
+        .cancel_button(0).default_button(0).build()
+        .choose(parent.as_ref(), gtk::gio::Cancellable::NONE, move |response| {
+            if response == Ok(1) { proceed(); }
+        });
 }
 fn install(p: &Package) -> Result<(), String> {
     if p.source == "GitHub" {
@@ -744,6 +802,22 @@ mod tests {
         custom_theme::Palette::default().save(&palette).unwrap();
         assert_eq!(load_theme(&theme, &palette), 3);
         std::fs::remove_dir_all(root).unwrap();
+    }
+    #[test]
+    fn terminal_preferences_and_command_arguments_are_preserved() {
+        let candidates = terminal_candidates(Some("ghostty --title 'Package install'"), |_| true);
+        assert_eq!(candidates[0], "ghostty --title 'Package install'");
+        assert_eq!(candidates[1], "xdg-terminal-exec");
+        assert!(candidates.iter().any(|s| s == "foot"));
+        assert!(candidates.iter().any(|s| s == "alacritty"));
+        assert!(candidates.iter().any(|s| s == "wezterm"));
+        assert_eq!(terminal_options("ghostty"), ["-e"]);
+        assert_eq!(terminal_options("xdg-terminal-exec"), ["--"]);
+        assert!(terminal_candidates(Some("'unclosed"), |_| false).is_empty());
+        assert_eq!(
+            terminal_candidates(Some("missing"), |p| p == "foot"),
+            ["foot"]
+        );
     }
     #[test]
     fn terminal_failure_is_reported() {

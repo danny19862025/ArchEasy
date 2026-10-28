@@ -24,6 +24,21 @@ esac
  for name,text in commands.items():
   p=tools/name;p.write_text(text);p.chmod(0o755)
  env={**os.environ,'PATH':str(tools)+':'+os.environ['PATH'],'XDG_CONFIG_HOME':str(root/'config'),'XDG_DATA_HOME':str(root/'data'),'XDG_CACHE_HOME':str(root/'cache'),'ARCHEASY_UI_FIXTURE':'1','ARCHEASY_UI_SCREENSHOT':os.environ.get('ARCHEASY_UI_SCREENSHOT', '/tmp/archeasy-native-preview.png')}
- for i, test in enumerate(['ux_tests::native_search_and_guided_flows', 'configs::workflow_tests::configs_workflow_ui']):
+ for i, test in enumerate(['ux_tests::native_search_and_guided_flows', 'configs::workflow_tests::configs_workflow_ui', 'appcleaner::tests::embedded_cleaner_workflow', 'cloud::tests::cloud_tab_workflow', 'store::installed::tests::installed_rings_animate_settle_and_respect_reduced_motion', 'snapshots::tests::snapshot_dialog_selection_and_empty_backup_guard']):
   case_env={**env,'XDG_CONFIG_HOME':str(root/f'config-{i}'),'XDG_DATA_HOME':str(root/f'data-{i}'),'XDG_CACHE_HOME':str(root/f'cache-{i}')}
-  subprocess.run(['cargo','test','--offline',test,'--','--ignored','--exact','--test-threads=1','--nocapture'],env=case_env,check=True,cwd=ROOT)
+  home = root/f'home-{i}'
+  runtime = root/f'runtime-{i}'
+  home.mkdir()
+  runtime.mkdir(mode=0o700)
+  case_env.update(HOME=str(home), XDG_RUNTIME_DIR=str(runtime), GSETTINGS_BACKEND='memory', CARGO_HOME=os.environ.get('CARGO_HOME', str(Path.home()/'.cargo')), RUSTUP_HOME=os.environ.get('RUSTUP_HOME', str(Path.home()/'.rustup')))
+  if test == 'appcleaner::tests::embedded_cleaner_workflow':
+   isolated = home/'.cache/archeasy-cleaner-smoke-ci'
+   isolated.mkdir(parents=True)
+   case_env.update(ARCHEASY_CLEANER_TEST_ROOT=str(isolated), XDG_DATA_HOME=str(isolated/'data'))
+  if os.environ.get('ARCHEASY_PREBUILT_TESTS') == '1':
+   binaries = [p for p in (ROOT/'target/debug/deps').glob('archeasy-*') if p.is_file() and os.access(p, os.X_OK)]
+   binary = max(binaries, key=lambda p: p.stat().st_mtime_ns)
+   command = [str(binary), test, '--ignored', '--exact', '--test-threads=1', '--nocapture']
+  else:
+   command = ['cargo', 'test', '--offline', test, '--', '--ignored', '--exact', '--test-threads=1', '--nocapture']
+  subprocess.run(command, env=case_env, check=True, cwd=ROOT)

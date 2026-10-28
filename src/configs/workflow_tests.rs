@@ -83,6 +83,23 @@ fn binary_configs_survive_apply_history_zip_export_and_restore() {
     assert!(!root.join("app/font.ttf").exists());
 }
 #[test]
+fn publishing_secrets_is_blocked_before_staging_or_running_github_cli() {
+    let temp = Temp::new();
+    let mut plan = Plan::builtin(&PRESETS[0]);
+    plan.files = vec![(
+        "app/settings".into(),
+        b"token=ghp_0123456789abcdefghijklmnop".to_vec(),
+    )];
+    let stage = temp.0.join("stage");
+    for public in [false, true] {
+        let error =
+            sharing::publish(&plan, public, Path::new("/does-not-exist"), &stage).unwrap_err();
+        assert!(error.contains("Publishing blocked"));
+        assert!(!error.contains("ghp_"));
+        assert!(!stage.exists());
+    }
+}
+#[test]
 fn failed_fish_syntax_or_startup_restores_entire_transaction() {
     for bad_fish in ["if true\n", "__archeasy_missing_startup_command__\n"] {
         let temp = Temp::new();

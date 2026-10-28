@@ -138,7 +138,7 @@ fn dialog(parent: &gtk::ApplicationWindow) {
     steps.set_wrap(true);
     body.append(&steps);
     let note = label(
-        "Save one ZIP for another computer or keep a local file backup. Close apps before capture. Select your app data, local programs and personal files below. Links and special files are skipped. Limit: 20 GiB / 200,000 entries. ZIP contents may contain passwords; keep the backup private.",
+        "Save one ZIP for another computer or keep a local file backup. Close apps before capture. Select your app data, local programs and personal files below. SSH/GPG keys, credential stores, browser profiles, links and special files are excluded. Limit: 20 GiB / 200,000 entries. ZIP contents may contain passwords; keep the backup private.",
         "subtitle",
     );
     note.set_wrap(true);

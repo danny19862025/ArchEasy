@@ -127,6 +127,35 @@ fn snapshot_rejects_staging_overlap_before_creating_or_changing_directories() {
     assert!(snapshot.files > 0);
 }
 #[test]
+fn cloud_backup_excludes_credentials_and_browser_profiles_from_parent_selections() {
+    let fixture = Fixture::new();
+    let home = fixture.home();
+    for name in [
+        ".config/google-chrome/Default/Cookies",
+        ".config/rclone/rclone.conf",
+        ".ssh/id_rsa",
+    ] {
+        let path = home.join(name);
+        fs::create_dir_all(path.parent().unwrap()).unwrap();
+        fs::write(path, b"private").unwrap();
+    }
+    let stage = fixture.0.join("stage");
+    let snapshot = core::snapshot(&home, &[home.join(".config")], &stage).unwrap();
+    assert_eq!(snapshot.files, 1);
+    assert_eq!(snapshot.skipped, 2);
+    assert!(!snapshot.path.join("files/.config/google-chrome").exists());
+    assert!(
+        core::snapshot(&home, &[home.join(".ssh")], &stage)
+            .unwrap_err()
+            .contains("excluded")
+    );
+    assert!(
+        core::suggestions(&home, &home.join(".config"))
+            .iter()
+            .all(|p| p.ends_with("example"))
+    );
+}
+#[test]
 fn local_cloud_roundtrip_preserves_backups_and_refuses_overwrites() {
     let fixture = Fixture::new();
     let client = fixture.client();

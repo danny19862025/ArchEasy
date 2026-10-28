@@ -438,7 +438,7 @@ pub(super) fn review_dialog(
         return;
     }
     let install = gtk::CheckButton::with_label(
-        "Install missing dependencies first (Pacman may update the system)",
+        "Install missing dependencies first — this will upgrade your whole system",
     );
     install.set_active(true);
     install.set_visible(matches!(mode, Mode::Setup));

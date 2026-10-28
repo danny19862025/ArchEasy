@@ -13,6 +13,7 @@ import zipfile
 
 LIMIT = 20 * 1024**3
 COUNT = 200_000
+EXCLUDED = [Path(p) for p in json.loads('''[".ssh", ".gnupg", ".mozilla", ".zen", ".netrc", ".aws", ".kube", ".config/google-chrome", ".config/chromium", ".config/BraveSoftware", ".config/microsoft-edge", ".config/zen", ".config/rclone", ".local/share/keyrings", ".local/share/kwalletd", ".var/app/org.mozilla.firefox", ".var/app/org.chromium.Chromium", ".var/app/com.google.Chrome", ".var/app/com.brave.Browser", ".var/app/app.zen_browser.zen"]''')]
 
 
 def safe(name):
@@ -46,6 +47,10 @@ def create(req):
         with zipfile.ZipFile(stage, 'w', zipfile.ZIP_DEFLATED) as archive:
             def add(path):
                 nonlocal total, skipped
+                relative = path.relative_to(home)
+                if any(relative == excluded or excluded in relative.parents for excluded in EXCLUDED):
+                    skipped += 1
+                    return
                 name = safe('home/' + path.relative_to(home).as_posix())
                 if name in seen:
                     return
@@ -87,7 +92,7 @@ def create(req):
                 archive.writestr('my-system.sh', req['script'])
             archive.writestr('restore-snapshot.py', req['helper'])
             archive.writestr('README.txt', 'ArchEasy snapshot\n\nExtract restore-snapshot.py and run:\npython3 restore-snapshot.py restore snapshot.zip NEW_FOLDER\n\nFiles are verified and unpacked into NEW_FOLDER. Review home/ then copy desired files into your home. Existing live files are never changed by unpacking.\nOn Arch Linux, review and run: bash NEW_FOLDER/my-system.sh (if included).\nThis reinstalls current repository packages and restores bundled managed configs with rollback backups. Vendor/unavailable packages need their original sources.\nCustom apps need their source/binaries: include Projects, .local/bin, .local/share/applications and relevant app data when taking snapshots.\nLinks/special files are skipped. This ZIP may contain passwords/tokens; keep it private.\n')
-            archive.writestr('manifest.json', json.dumps({'format': 'archeasy-snapshot-v1', 'created': time.strftime('%Y-%m-%dT%H:%M:%S%z'), 'selections': [str(p.relative_to(home)) for p in paths], 'entries': entries, 'bytes': total, 'skipped': skipped, 'apps': bool(req.get('script'))}, indent=2))
+            archive.writestr('manifest.json', json.dumps({'format': 'archeasy-snapshot-v1', 'created': time.strftime('%Y-%m-%dT%H:%M:%S%z'), 'selections': [str(p.relative_to(home)) for p in paths], 'entries': entries, 'bytes': total, 'skipped': skipped, 'excluded_sensitive_paths': [str(p) for p in EXCLUDED], 'apps': bool(req.get('script'))}, indent=2))
         stage.chmod(0o600)
         try:
             os.link(stage, target)
@@ -105,7 +110,7 @@ def create(req):
             except BaseException:
                 target.unlink()
                 raise
-    return f'Saved {target}: {len(entries)} entries, {total:,} bytes; skipped {skipped} links/special files.'
+    return f'Saved {target}: {len(entries)} entries, {total:,} bytes; skipped {skipped} sensitive paths and links/special files.'
 
 
 def restore(source, destination):

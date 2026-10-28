@@ -355,7 +355,7 @@ fn page_with_client(
         let paths: Vec<_> = choices.borrow().iter().filter(|(c,_)|c.is_active()).map(|(_,p)|p.clone()).collect();
         if paths.is_empty() { return; }
         let cloud_folder = save_folder.text().to_string();
-        let details = format!("Destination: {remote}:{cloud_folder}\n\n{}\n\nOnly these selections are uploaded. Config files may include private data. Links and special files are skipped.", paths.iter().map(|p|p.display().to_string()).collect::<Vec<_>>().join("\n"));
+        let details = format!("Destination: {remote}:{cloud_folder}\n\n{}\n\nOnly these selections are uploaded. Config files may include private data. SSH/GPG keys, credential stores, browser profiles, links and special files are excluded.", paths.iter().map(|p|p.display().to_string()).collect::<Vec<_>>().join("\n"));
         let form = save_form.clone(); let spinner = save_spin.clone(); let status = save_status.clone(); let home = home.clone(); let staging = glib::user_cache_dir().join("archeasy/cloud-staging");
         gtk::AlertDialog::builder().message("Save these configs to cloud?").detail(details).buttons(["Cancel", "Save backup"]).cancel_button(0).default_button(0).build().choose(Some(&window), gtk::gio::Cancellable::NONE, move |response| {
             if response != Ok(1) { return; }
@@ -363,7 +363,7 @@ fn page_with_client(
                 let snapshot = core::snapshot(&home, &paths, &staging)?;
                 let target = client.upload(&snapshot, &remote, &cloud_folder)?;
                 Ok((target, snapshot.files, snapshot.bytes, snapshot.skipped))
-            }, |(target, files, bytes, skipped)| format!("Saved {files} files ({:.1} KiB) to {target}. Skipped {skipped} links/special files.", bytes as f64 / 1024.0));
+            }, |(target, files, bytes, skipped)| format!("Saved {files} files ({:.1} KiB) to {target}. Skipped {skipped} sensitive paths and links/special files.", bytes as f64 / 1024.0));
         });
     });
     let browse_form = form.clone();

@@ -19,6 +19,7 @@ fn pump(duration: Duration) {
 }
 #[test]
 #[ignore = "Requires a desktop display and ARCHEASY_UI_FIXTURE=1 fake package tools"]
+#[allow(deprecated)]
 fn native_search_and_guided_flows() {
     assert_eq!(std::env::var("ARCHEASY_UI_FIXTURE").as_deref(), Ok("1"));
     adw::init().unwrap();
@@ -42,6 +43,28 @@ fn native_search_and_guided_flows() {
     win.set_child(Some(&overlay));
     win.present();
     pump(Duration::from_millis(300));
+    let proceeded = std::rc::Rc::new(std::cell::Cell::new(false));
+    let result = proceeded.clone();
+    confirm_upgrade(true, move || result.set(true));
+    pump(Duration::from_millis(100));
+    assert!(!proceeded.get());
+    let confirmation = gtk::Window::list_toplevels()
+        .into_iter()
+        .filter_map(|w| w.downcast::<gtk::MessageDialog>().ok())
+        .find(|w| w.is_visible())
+        .expect("system upgrade confirmation");
+    assert_eq!(
+        confirmation.text().as_deref(),
+        Some("This will upgrade your whole system")
+    );
+    descendants(&confirmation)
+        .into_iter()
+        .filter_map(|w| w.downcast::<gtk::Button>().ok())
+        .find(|b| b.label().as_deref() == Some("Cancel"))
+        .unwrap()
+        .emit_clicked();
+    pump(Duration::from_millis(100));
+    assert!(!proceeded.get(), "Cancel must not start installation");
     let widgets = descendants(&page);
     let entry = widgets
         .iter()
