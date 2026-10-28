@@ -82,7 +82,7 @@ fn empty(entry: &gtk::Entry) -> gtk::Box {
     body.append(&gtk::Label::new(Some("Discover your next Arch essential")));
     let chips = gtk::Box::new(gtk::Orientation::Horizontal, 8);
     chips.set_halign(gtk::Align::Center);
-    for name in ["Browser", "Hyprland", "Ghostty"] {
+    for name in ["Firefox", "Hyprland", "Ghostty"] {
         let chip = gtk::Button::with_label(name);
         chip.add_css_class("pill");
         let entry = entry.clone();
