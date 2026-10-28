@@ -26,7 +26,20 @@ pub fn featured() -> Package {
         installed: false,
     }
 }
-pub fn add_featured(packages: &mut Vec<Package>) {
+pub fn add_featured(query: &str, packages: &mut Vec<Package>) {
+    let query = query.to_ascii_lowercase();
+    if ![
+        "archeasy",
+        "easyarch",
+        "danny19862025",
+        "arch easy",
+        "easy arch",
+    ]
+    .iter()
+    .any(|term| query.contains(term))
+    {
+        return;
+    }
     packages.retain(|p| !is_featured(p));
     packages.insert(0, featured());
 }
@@ -225,14 +238,29 @@ mod tests {
                 ..featured()
             },
         ];
-        add_featured(&mut packages);
-        add_featured(&mut packages);
+        add_featured("archeasy", &mut packages);
+        add_featured("danny19862025", &mut packages);
         assert_eq!(packages.len(), 2);
         assert!(is_featured(&packages[0]));
         assert_eq!(
             super::super::package_page(&packages[0]).unwrap().0,
             "https://github.com/danny19862025/ArchEasy"
         );
+        for query in ["firefox", "fish", "browser", "ghostty", "arch", ""] {
+            let mut packages = vec![];
+            add_featured(query, &mut packages);
+            assert!(packages.is_empty(), "Unrelated query: {query}");
+        }
+        for query in [
+            "ArchEasy",
+            "easyarch",
+            "arch easy",
+            "danny19862025/ArchEasy",
+        ] {
+            let mut packages = vec![];
+            add_featured(query, &mut packages);
+            assert!(is_featured(&packages[0]));
+        }
     }
 
     #[test]

@@ -280,6 +280,19 @@ pub fn software(page: &gtk::Box, window: &gtk::ApplicationWindow, tabs: &gtk::St
         .enumerate()
     {
         let chip = gtk::ToggleButton::with_label(name);
+        if *name == "GitHub" {
+            let bytes = glib::Bytes::from_static(include_bytes!("../assets/github.svg"));
+            let stream = gtk::gio::MemoryInputStream::from_bytes(&bytes);
+            let image = gtk::gdk_pixbuf::Pixbuf::from_stream(&stream, gtk::gio::Cancellable::NONE)
+                .ok()
+                .and_then(|p| p.scale_simple(20, 20, gtk::gdk_pixbuf::InterpType::Bilinear))
+                .map(|p| gtk::Image::from_pixbuf(Some(&p)))
+                .unwrap_or_else(|| gtk::Image::from_icon_name("system-search-symbolic"));
+            chip.set_child(Some(&image));
+            chip.set_widget_name("github-source");
+            chip.set_tooltip_text(Some("Search GitHub"));
+            chip.update_property(&[gtk::accessible::Property::Label("GitHub")]);
+        }
         chip.add_css_class("pill");
         chip.add_css_class("filter-chip");
         if let Some(first) = &first {
@@ -298,6 +311,13 @@ pub fn software(page: &gtk::Box, window: &gtk::ApplicationWindow, tabs: &gtk::St
         });
         filters.append(&chip);
     }
+    let profile = gtk::LinkButton::with_label(
+        "https://github.com/danny19862025?tab=repositories",
+        "danny19862025",
+    );
+    profile.set_widget_name("danny-github-repositories");
+    profile.set_tooltip_text(Some("Open Danny’s GitHub repositories"));
+    filters.append(&profile);
     page.append(&filters);
     let status = label(
         "/ Search   •   Esc Clear   •   ↑ ↓ Navigate   •   Enter Install",
@@ -349,14 +369,6 @@ pub fn software(page: &gtk::Box, window: &gtk::ApplicationWindow, tabs: &gtk::St
         }
         actions.borrow_mut().clear();
         if query.chars().count() < 2 {
-            if selected.get() == 4 {
-                let (row, button) = result_row(github::featured(), "", &queue, &queue_run, &s);
-                l.append(&row);
-                actions.borrow_mut().push(button);
-                st.set_visible_child_name("results");
-                s.set_text("Featured GitHub repository · type to search for more projects");
-                return;
-            }
             st.set_visible_child_name("empty");
             s.set_text("Type at least two characters • / Search • Esc Clear");
             return;
@@ -387,7 +399,7 @@ pub fn software(page: &gtk::Box, window: &gtk::ApplicationWindow, tabs: &gtk::St
                     packages.retain(|p| p.installed);
                 }
                 if source == "GitHub" {
-                    github::add_featured(&mut packages);
+                    github::add_featured(&query, &mut packages);
                 }
                 packages.sort_by_key(|p| {
                     (

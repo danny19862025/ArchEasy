@@ -83,29 +83,26 @@ fn native_search_and_guided_flows() {
     let github = widgets
         .iter()
         .filter_map(|w| w.clone().downcast::<gtk::ToggleButton>().ok())
-        .find(|b| b.label().as_deref() == Some("GitHub"))
+        .find(|b| b.widget_name() == "github-source")
         .unwrap();
     github.set_active(true);
     pump(Duration::from_millis(100));
-    let featured = list
-        .row_at_index(0)
+    assert!(github.child().unwrap().is::<gtk::Image>());
+    assert!(
+        list.row_at_index(0).is_none(),
+        "An empty GitHub query must not inject ArchEasy"
+    );
+    let profile = widgets
+        .iter()
+        .find(|w| w.widget_name() == "danny-github-repositories")
         .unwrap()
-        .downcast::<adw::ActionRow>()
+        .clone()
+        .downcast::<gtk::LinkButton>()
         .unwrap();
-    assert_eq!(featured.title(), github::FEATURED_REPO);
-    assert!(featured.subtitle().unwrap().contains("Featured"));
-    assert!(
-        descendants(&featured)
-            .iter()
-            .any(|w| w.widget_name() == "featured-archeasy-icon")
+    assert_eq!(
+        profile.uri(),
+        "https://github.com/danny19862025?tab=repositories"
     );
-    assert!(
-        descendants(&featured)
-            .iter()
-            .filter_map(|w| w.clone().downcast::<gtk::Button>().ok())
-            .any(|b| b.label().as_deref() == Some("Open repository"))
-    );
-    assert!(list.row_at_index(1).is_none());
     let pacman = widgets
         .iter()
         .filter_map(|w| w.clone().downcast::<gtk::ToggleButton>().ok())
@@ -327,7 +324,7 @@ fn native_search_and_guided_flows() {
         widgets
             .iter()
             .filter_map(|w| w.clone().downcast::<gtk::ToggleButton>().ok())
-            .any(|b| b.label().as_deref() == Some("GitHub"))
+            .any(|b| b.widget_name() == "github-source")
     );
     let tabs = widgets
         .iter()
