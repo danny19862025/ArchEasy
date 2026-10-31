@@ -11,6 +11,7 @@ mod gaming;
 mod github;
 mod github_release;
 mod maintenance;
+mod management;
 mod search_history;
 mod snapshots;
 mod store;
@@ -19,6 +20,7 @@ mod system_tools;
 mod task_search;
 mod updates;
 mod ux;
+mod workbench;
 
 use adw::prelude::*;
 use gtk::glib;
@@ -385,23 +387,10 @@ fn terminal_candidates(preferred: Option<&str>, has: impl Fn(&str) -> bool) -> V
     terminals.dedup();
     terminals
 }
+#[cfg(test)]
 const SYSTEM_UPDATE_SCRIPT: &str = include_str!("../scripts/system-update.sh");
 fn system_update(snapshot: &str) -> Result<(), String> {
-    if !available("pacman") || !available("sudo") || !available("flock") {
-        return Err("System updates require pacman, sudo, and flock (util-linux).".into());
-    }
-    let helper = ["paru", "yay"]
-        .into_iter()
-        .find(|p| available(p))
-        .unwrap_or("");
-    terminal(vec![
-        "/usr/bin/bash".into(),
-        "-c".into(),
-        SYSTEM_UPDATE_SCRIPT.into(),
-        "archeasy-system-update".into(),
-        helper.into(),
-        snapshot.into(),
-    ])
+    management::update(snapshot)
 }
 fn confirm_upgrade(required: bool, proceed: impl FnOnce() + 'static) {
     if !required {
@@ -426,6 +415,16 @@ fn install(p: &Package) -> Result<(), String> {
     }
     if !valid_id(&p.name) || (!p.remote.is_empty() && !valid_id(&p.remote)) {
         return Err("Invalid package identifier".into());
+    }
+    if p.source == "Pacman" {
+        return management::launch(
+            serde_json::json!({"action":"software-install", "package":p.name}),
+        );
+    }
+    if p.source == "Flatpak" {
+        return management::launch(
+            serde_json::json!({"action":"software-flatpak-install", "package":p.name, "remote":p.remote}),
+        );
     }
     let args: Vec<String> = match p.source.as_str() {
         "Pacman" => vec!["sudo", "pacman", "-Syu", "--needed", "--", &p.name],
@@ -759,18 +758,22 @@ fn build_ui(app: &gtk::Application) {
         }
     });
     root.append(&label(
-        "Find your next app. One search, four software sources.",
+        "Set up, understand and maintain your Arch Linux desktop.",
         "subtitle",
     ));
     let software = gtk::Box::new(gtk::Orientation::Vertical, 14);
     software.set_vexpand(true);
     let stack = gtk::Stack::builder().vexpand(true).build();
     stack.set_widget_name("archeasy-tabs");
-    stack.add_titled(&software, Some("software"), "Software");
+    stack.add_titled(&software, Some("software"), "Software Centre");
     stack.add_titled(&store::installed_page(), Some("installed"), "Installed");
-    stack.add_named(&gaming::page(&win), Some("gaming"));
-    stack.add_named(&developer::page(&win), Some("developer"));
-    stack.add_named(&github_release::page(&win), Some("github-release"));
+    stack.add_titled(&gaming::page(&win), Some("gaming"), "Gaming Setup");
+    stack.add_titled(&developer::page(&win), Some("developer"), "Developer Tools");
+    stack.add_titled(
+        &github_release::page(&win),
+        Some("github-release"),
+        "GitHub Releases",
+    );
     stack.add_titled(&configs::page(&win), Some("configs"), "Configs");
     let cleaner = gtk::Box::new(gtk::Orientation::Vertical, 0);
     stack.add_titled(&cleaner, Some("appcleaner"), "AppCleaner");
@@ -800,23 +803,42 @@ fn build_ui(app: &gtk::Application) {
         Some("permissions"),
         "Permissions",
     );
-    let navigation = gtk::StackSwitcher::builder()
-        .stack(&stack)
-        .halign(gtk::Align::Start)
+    for (id, title) in [
+        ("backups", "Backup & Restore"),
+        ("system-updates", "System Updates"),
+        ("hardware-drivers", "Hardware & Drivers"),
+    ] {
+        stack.add_titled(&management::page(&win, title), Some(id), title);
+    }
+    for (id, title) in [
+        ("health", "System Health"),
+        ("creator", "Creator Studio"),
+        ("desktop", "Desktop Customisation"),
+        ("rescue", "System Rescue"),
+        ("disks", "Disk Manager"),
+        ("network", "Network & Security"),
+        ("laptop", "Laptop Optimisation"),
+        ("migration", "Migration & Dotfiles"),
+    ] {
+        stack.add_titled(&workbench::page(&win, title), Some(id), title);
+    }
+    stack.set_hhomogeneous(false);
+    stack.set_vhomogeneous(false);
+    let workspace = gtk::Paned::builder()
+        .orientation(gtk::Orientation::Horizontal)
+        .start_child(&workbench::navigation(&stack))
+        .end_child(&stack)
+        .position(225)
+        .resize_start_child(false)
+        .shrink_start_child(false)
+        .shrink_end_child(false)
+        .vexpand(true)
         .build();
-    navigation.remove_css_class("linked");
-    navigation.add_css_class("main-navigation");
-    root.append(
-        &gtk::ScrolledWindow::builder()
-            .hscrollbar_policy(gtk::PolicyType::Automatic)
-            .vscrollbar_policy(gtk::PolicyType::Never)
-            .propagate_natural_height(true)
-            .child(&navigation)
-            .build(),
-    );
-    root.append(&stack);
+    root.append(&workspace);
     root.append(&title);
     ux::software(&software, &win, &stack);
+    workbench::software_categories(&software);
+    stack.set_visible_child_name("software");
 
     let background = appearance::background(&root);
     appearance::opening_animation(&background, &title);

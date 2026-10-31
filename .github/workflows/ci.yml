@@ -24,6 +24,8 @@ jobs:
           runuser -u nobody -- python tests/setup_store_smoke.py
           runuser -u nobody -- python tests/snapshot_smoke.py
           runuser -u nobody -- python tests/maintenance_smoke.py
+          runuser -u nobody -- python tests/system_management_test.py
+          runuser -u nobody -- python tests/workbench_test.py
           runuser -u nobody -- python tests/gaming_smoke.py
           runuser -u nobody -- python tests/developer_smoke.py
           runuser -u nobody -- python tests/github_build_smoke.py

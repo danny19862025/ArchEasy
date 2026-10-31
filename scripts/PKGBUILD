@@ -13,11 +13,22 @@ optdepends=('flatpak: Flatpak software sources and permissions'
             'git: GitHub repository builds'
             'base-devel: build tools for GitHub and AUR packages'
             'fish: validate and run Fish presets after applying'
-            'pacman-contrib: clean old cached packages while keeping three versions'
+            'pacman-contrib: safe update checks and package cache cleaning'
             'paru: AUR package installation' 'rclone: cloud config backups'
             'konsole: interactive package operations (or another supported terminal)'
             'pipewire: click sound playback with pw-play'
             'pciutils: GPU information' 'github-cli: config sharing'
+            'smartmontools: read-only disk health inspection'
+            'power-profiles-daemon: supported power profile selection'
+            'brightnessctl: supported backlight control'
+            'iw: Wi-Fi diagnostics'
+            'wireguard-tools: VPN interface inspection'
+            'restic: encrypted external file backups'
+            'usbutils: USB and Bluetooth hardware diagnostics'
+            'mesa-utils: OpenGL acceleration diagnostics'
+            'vulkan-tools: Vulkan diagnostics'
+            'fwupd: read-only firmware update checks'
+            'sudo: interactive system maintenance operations'
             'timeshift: pre-update snapshots' 'snapper: pre-update snapshots')
 provides=('archeasy')
 conflicts=('archeasy')
@@ -49,6 +60,8 @@ check() {
     python tests/github_release_smoke.py
     python tests/snapshot_smoke.py
     python tests/maintenance_smoke.py
+    python tests/system_management_test.py
+    python tests/workbench_test.py
     python tests/gaming_smoke.py
     python tests/developer_smoke.py
     luac -p presets/hypr/hyprland.lua

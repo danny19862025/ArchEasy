@@ -2,6 +2,8 @@
 
 [Back to README](../README.md)
 
+The **Backup & Restore** page adds root filesystem/provider inspection and encrypted external Restic backups. See [system management](system-management.md) for supported operations, guided offline recovery and safety limits. Existing portable ZIP/cloud workflows remain available.
+
 ## Cloud Backup
 
 The **Cloud Backup** tab saves existing user configuration files through rclone, with Google Drive and Dropbox connection buttons and support for existing rclone accounts. Requires `rclone` on PATH. Sign-in opens in a terminal/browser; return and click **Refresh accounts** when finished. ArchEasy reads account names/types, not OAuth tokens, and does not copy the rclone credentials into its settings. The suggested list excludes the rclone config folder.

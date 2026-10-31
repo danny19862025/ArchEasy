@@ -10,23 +10,15 @@ struct Installed {
     scope: Option<&'static str>,
 }
 impl Installed {
-    fn removal_args(&self, clean: bool) -> Vec<String> {
+    fn removal_request(&self, clean: bool) -> serde_json::Value {
         if let Some(scope) = self.scope {
-            vec!["flatpak", "uninstall", scope, "--", &self.id]
+            serde_json::json!({"action":"software-flatpak-remove", "package":self.id, "scope":scope})
         } else {
-            vec![
-                "sudo",
-                "pacman",
-                if clean { "-Rns" } else { "-R" },
-                "--",
-                &self.id,
-            ]
+            serde_json::json!({"action":"software-remove", "package":self.id, "clean":clean})
         }
-        .into_iter()
-        .map(str::to_owned)
-        .collect()
     }
 }
+
 const SOURCES: [&str; 3] = ["Pacman", "AUR", "Flatpak"];
 const COLORS: [(f64, f64, f64); 3] = [(0.24, 0.68, 0.96), (0.89, 0.62, 0.98), (0.33, 0.80, 0.71)];
 fn parse_packages(text: &str, source: usize) -> Vec<Installed> {
@@ -417,7 +409,7 @@ pub fn page() -> gtk::Box {
                 clean.set_tooltip_text(Some("Also removes unneeded dependencies and disables .pacsave backups for modified package config files. Review Pacman's transaction before confirming."));
                 clean.set_visible(package.scope.is_none());
                 info.append(&clean);
-                remove.connect_clicked(move |_| match terminal(package.removal_args(clean.is_active())) {
+                remove.connect_clicked(move |_| match crate::management::launch(package.removal_request(clean.is_active())) {
                     Ok(()) => status.set_text("Review the removal in your terminal, then refresh this list."),
                     Err(e) => status.set_text(&e),
                 });
@@ -534,24 +526,15 @@ mod tests {
         assert_eq!(native.len(), 1);
         assert_eq!(foreign[0].source, 1);
         assert_eq!(
-            native[0].removal_args(false),
-            ["sudo", "pacman", "-R", "--", "firefox"]
+            native[0].removal_request(false),
+            serde_json::json!({"action":"software-remove", "package":"firefox", "clean":false})
         );
         assert_eq!(
-            user[0].removal_args(false),
-            [
-                "flatpak",
-                "uninstall",
-                "--user",
-                "--",
-                "org.mozilla.firefox"
-            ]
+            user[0].removal_request(false),
+            serde_json::json!({"action":"software-flatpak-remove", "package":"org.mozilla.firefox", "scope":"--user"})
         );
-        assert_eq!(
-            native[0].removal_args(true),
-            ["sudo", "pacman", "-Rns", "--", "firefox"]
-        );
-        assert_eq!(system[0].removal_args(true)[2], "--system");
+        assert_eq!(native[0].removal_request(true)["clean"], true);
+        assert_eq!(system[0].removal_request(true)["scope"], "--system");
         assert!(parse_flatpaks("--bad\tBad\t1", "--user").is_empty());
     }
 }

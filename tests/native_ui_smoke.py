@@ -24,7 +24,7 @@ esac
  for name,text in commands.items():
   p=tools/name;p.write_text(text);p.chmod(0o755)
  env={**os.environ,'PATH':str(tools)+':'+os.environ['PATH'],'XDG_CONFIG_HOME':str(root/'config'),'XDG_DATA_HOME':str(root/'data'),'XDG_CACHE_HOME':str(root/'cache'),'ARCHEASY_UI_FIXTURE':'1','ARCHEASY_UI_SCREENSHOT':os.environ.get('ARCHEASY_UI_SCREENSHOT', '/tmp/archeasy-native-preview.png')}
- for i, test in enumerate(['ux_tests::native_search_and_guided_flows', 'gaming::tests::gaming_defaults_and_controls', 'developer::tests::developer_presets_sources_and_selection', 'github_release::tests::release_page_controls_and_invalid_url', 'configs::workflow_tests::configs_workflow_ui', 'appcleaner::tests::embedded_cleaner_workflow', 'cloud::tests::cloud_tab_workflow', 'store::installed::tests::installed_rings_animate_settle_and_respect_reduced_motion', 'snapshots::tests::snapshot_dialog_selection_and_empty_backup_guard']):
+ for i, test in enumerate(['ux_tests::native_search_and_guided_flows', 'management::tests::management_pages_build_without_system_operations', 'workbench::tests::pages_build_without_changes', 'gaming::tests::gaming_defaults_and_controls', 'developer::tests::developer_presets_sources_and_selection', 'github_release::tests::release_page_controls_and_invalid_url', 'configs::workflow_tests::configs_workflow_ui', 'appcleaner::tests::embedded_cleaner_workflow', 'cloud::tests::cloud_tab_workflow', 'store::installed::tests::installed_rings_animate_settle_and_respect_reduced_motion', 'snapshots::tests::snapshot_dialog_selection_and_empty_backup_guard']):
   case_env={**env,'XDG_CONFIG_HOME':str(root/f'config-{i}'),'XDG_DATA_HOME':str(root/f'data-{i}'),'XDG_CACHE_HOME':str(root/f'cache-{i}')}
   home = root/f'home-{i}'
   runtime = root/f'runtime-{i}'

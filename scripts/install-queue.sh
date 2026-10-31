@@ -18,14 +18,25 @@ for ((i=0; i<${#items[@]}; i+=3)); do
         *) exit 1 ;;
     esac
 done
+# Coordinate with Gaming Setup, Developer Tools and the management broker.
+lock_dir=${XDG_RUNTIME_DIR:-${XDG_CACHE_HOME:-$HOME/.cache}/archeasy}
+/usr/bin/mkdir -p -- "$lock_dir"
+exec 8>"$lock_dir/archeasy-packages.lock"
+exec 9>"$lock_dir/archeasy-update.lock"
+/usr/bin/flock -n 8 && /usr/bin/flock -n 9 || { printf 'Another ArchEasy package operation is active.\n'; exit 1; }
+[[ ! -e /var/lib/pacman/db.lck ]] || { printf 'Pacman is locked; no lock is removed.\n'; exit 1; }
 updated=false
 while (( $# )); do
     source=$1 remote=$2 package=$3; shift 3
+    if [[ -t 0 ]]; then
+        read -r -p "Continue with $package ($source)? [y/N] " answer
+        [[ $answer == y || $answer == Y ]] || { printf 'Stopped between transactions; completed packages are retained.\n'; exit 1; }
+    fi
     printf '\nInstalling %s (%s)\n' "$package" "$source"
     case $source in
         Pacman)
             if [[ $updated == false ]]; then sudo pacman -Syu --needed -- "$package"; updated=true;
-            else sudo pacman -S --needed -- "$package"; fi ;;
+            else sudo pacman -Syu --needed -- "$package"; fi ;;
         AUR)
             if command -v paru >/dev/null 2>&1; then paru -Syu --needed -- "$package";
             else yay -Syu --needed -- "$package"; fi ;;

@@ -9,6 +9,8 @@ cargo test --offline
 cargo clippy --offline -- -D warnings
 python3 tests/setup_store_smoke.py
 python3 tests/snapshot_smoke.py
+python3 tests/system_management_test.py
+python3 tests/workbench_test.py
 luac -p presets/hypr/hyprland.lua
 lua tests/validate-hyprland.lua presets/hypr/hyprland.lua
 ```

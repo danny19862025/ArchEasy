@@ -48,21 +48,11 @@ pub fn update_dialog(parent: &gtk::ApplicationWindow, status: &gtk::Label) {
         .build();
     totals.add_prefix(&crate::ux::icon("software-update-available-symbolic"));
     summary.add(&totals);
-    let helper = ["paru", "yay"].into_iter().find(|name| available(name));
-    let commands = format!(
-        "Will run sudo pacman -Syu{}{}",
-        helper
-            .map(|h| format!(" then {h} -Sua"))
-            .unwrap_or_else(|| "; AUR skipped (no paru/yay)".into()),
-        if available("flatpak") {
-            ", then flatpak update --user / --system"
-        } else {
-            ""
-        }
-    );
+    let helper = None;
+    let commands = "Will run sudo pacman -Syu after lock, repository, database and disk-space checks. Flatpak is separate. AUR updates require independent helper and PKGBUILD review.";
     let command_row = adw::ActionRow::builder()
         .title("Review commands")
-        .subtitle(&commands)
+        .subtitle(commands)
         .build();
     command_row.set_subtitle_lines(3);
     summary.add(&command_row);
@@ -94,7 +84,7 @@ pub fn update_dialog(parent: &gtk::ApplicationWindow, status: &gtk::Label) {
         }
     });
     let note = label(
-        "Create a snapshot before updating? Timeshift must already be configured; Snapper uses its root configuration. A snapshot failure stops the update. Snapshots cover the configured filesystem and are not a backup of every disk or home folder.",
+        "Create a snapshot before updating? The backend verifies provider configuration and refuses conflicts. Failure stops the update. Review Backup & Restore first. Snapshots exclude some filesystems and do not guarantee recovery.",
         "subtitle",
     );
     note.set_wrap(true);
@@ -109,13 +99,9 @@ pub fn update_dialog(parent: &gtk::ApplicationWindow, status: &gtk::Label) {
             picker.append(Some(id), name);
         }
     }
-    if available("timeshift") {
-        picker.set_active_id(Some("timeshift"));
-    } else if available("snapper") {
-        picker.set_active_id(Some("snapper"));
-    } else {
+    {
         picker.set_active_id(Some("none"));
-        body.append(&label("No snapshot tool found. Configure Timeshift or Snapper first to enable snapshot creation.", "subtitle"));
+        body.append(&label("Snapshot selection is optional and verified again before execution. Read Arch news before starting. Terminal approval and pacman review are required.", "subtitle"));
     }
     body.append(&picker);
     dialog.add_button("Cancel", gtk::ResponseType::Cancel);

@@ -2,9 +2,19 @@
 
 A Rust + GTK4 software browser for Arch Linux. Search Pacman, AUR, Flatpak, and GitHub together, filter by source, see installed packages, and start installation from a package card.
 
+## System management
+
+**Backup & Restore**, **System Updates**, and **Hardware & Drivers** integrate filesystem/provider inspection, manual snapshots, encrypted Restic file backups, reviewed official full upgrades, separate Flatpak updates, persistent logs, and hardware diagnostics. Root restore, snapshot deletion/scheduling, AUR management and driver/firmware changes use guided or manual workflows. See [supported operations, dependencies, permissions and recovery limitations](docs/system-management.md).
+
+## Integrated workbench
+
+ArchEasy opens on **Software Centre**, with session graphs and diagnostic viewers. The always-visible sidebar lists all existing and new tools, including System Health. **Software Centre** reuses the existing store and adds categories. New pages include **Desktop Customisation**, **System Rescue**, **Disk Manager**, **Network & Security**, **Laptop Optimisation**, **Creator Studio**, and **Migration & Dotfiles**.
+
+Diagnostics are read-only. Supported changes—Creator package installation, GNOME colour preference/revert, existing power profiles, backlight, and private migration export/staging—require review. Boot/disk repair, firewall/SSH changes, hibernation setup and live dotfile restoration remain guided/manual. See the [module capability matrix, permissions and limitations](docs/workbench.md) and [test results](docs/workbench-verification.md).
+
 ## Screenshots
 
-Store (the **Software** tab), searching official packages:
+Store (the **Software Centre** page), searching official packages:
 
 ![ArchEasy Store with Firefox search results](assets/screenshots/store.png)
 
@@ -58,6 +68,7 @@ This installs the binary, desktop launcher, icon and licenses. `paru -S archeasy
 
 ## Guides
 
+- [Integrated workbench and recovery guidance](docs/workbench.md)
 - [Backups, cloud storage and transfer](docs/backups.md)
 - [Config presets, sharing, history and community sources](docs/configs.md)
 - [Development, tests and releases](docs/development.md)
@@ -94,14 +105,9 @@ Optionally save a GitHub token in `$XDG_CONFIG_HOME/archeasy/github_token` (defa
 
 ## System updates
 
-The top-bar **System update** button first offers a Timeshift or Snapper snapshot when installed, or an update without a snapshot. Configure the snapshot tool beforehand; Snapper uses its `root` configuration. A requested snapshot failure stops the update. The terminal then runs:
+The top-bar **System update** button and **System Updates** page share the reviewed official upgrade backend. It checks locks, competing package operations, free space, repositories and package databases, then presents a fresh `checkupdates` candidate plan. Read Arch news before typing `UPGRADE`; Pacman presents its final refreshed transaction and normal confirmation. Only `sudo pacman -Syu` runs for the official upgrade.
 
-1. `sudo pacman -Syu` for official packages.
-2. `paru -Sua` or `yay -Sua` for AUR packages only.
-3. `flatpak update --user` for your account.
-4. `flatpak update --system` for the default system-wide Flatpak installation.
-
-Review the usual password, package, and build prompts in that terminal. No confirmations are bypassed. If Pacman fails or is cancelled, AUR is skipped; Flatpak steps still run independently. Missing tools, failed commands, and skipped steps appear in the final summary. A per-user lock prevents duplicate ArchEasy update sessions. Keep the terminal open until package operations finish; it waits at the summary so you can read it. Nothing updates automatically on app startup.
+Select an optional configured Timeshift or Snapper snapshot in the review dialog. Provider conflicts or snapshot failure stop the update. Flatpak updates are a separate action. AUR/foreign packages are listed for manual review; helpers are no longer automatically chained. Private persistent logs record results and interrupted operations. No lock files are automatically deleted. See [system management](docs/system-management.md) for dependencies, safety checks, limitations and recovery guidance.
 
 ## AppCleaner
 
@@ -115,13 +121,13 @@ The embedded AppCleaner code's MIT license is included in `assets/AppCleaner-LIC
 
 ## Store queue and installed packages
 
-Tick **Queue** beside search results, including results from different searches, then **Install queue**. One terminal installs packages in the selected order and stops on failure. Earlier completed installs are kept. Pacman refreshes and upgrades the system with the first official package; subsequent official packages use the refreshed database. AUR packages use paru/yay and retain build review prompts. **Clear queue** clears selections; tick a result again to re-add it.
+Tick **Queue** beside search results, including results from different searches, then **Install queue**. One terminal installs packages in the selected order and stops on failure. Earlier completed installs are kept. Each official queue transaction uses a full-system upgrade; the queue coordinates with setup/update package locks and offers cancellation between transactions in an interactive terminal. AUR packages use paru/yay and retain build review prompts. **Clear queue** clears selections; tick a result again to re-add it.
 
 The **Installed** tab shows three percentage circles for **Pacman**, **AUR**, and **Flatpak**, with installed counts. The circles pop into view in sequence and fill/count up when the tab opens or you refresh; they respect the desktop’s reduced-motion setting. Percentages use the full list, regardless of the search filter, and round to 100% when entries exist. The list includes explicitly installed native/foreign Pacman packages and user/system Flatpak apps (separate installations count separately; Flatpak runtimes and Pacman dependency-only packages are excluded). AUR includes locally built/foreign packages, which Pacman cannot distinguish from AUR builds. If a source query fails, known entries remain visible and percentages show as unavailable until a successful refresh. Filter by app, package or source. **Remove** opens `sudo pacman -R` or the matching user/system `flatpak uninstall` command with normal confirmation prompts. Refresh after a transaction to update the list.
 
 ## System helpers
 
-The **System** tab detects the running kernel, installed linux/linux-zen/linux-lts/linux-hardened packages, GPU PCI information and known NVIDIA driver packages. It distinguishes DKMS from kernel-specific drivers and checks matching headers for detected DKMS setups. Warnings link to the Arch driver guide; no kernel, driver or boot configuration changes automatically. PCI detection needs `pciutils`.
+The **System Utilities** page detects the running kernel, installed linux/linux-zen/linux-lts/linux-hardened packages, GPU PCI information and known NVIDIA driver packages. It distinguishes DKMS from kernel-specific drivers and checks matching headers for detected DKMS setups. Warnings link to the Arch driver guide; no kernel, driver or boot configuration changes automatically. PCI detection needs `pciutils`.
 
 The **Permissions** tab lists user and system Flatpaks. Choose an app, select **Override** for a permission, and use its allow/deny switch. Only selected per-user overrides are changed. The screen shows app permissions and all system/user override layers. Audio access covers speakers and microphone together; devices access includes cameras. Folder permissions can overlap, and portals retain separate permissions. Restart the app after applying. A **Permissions** button is also available on Flatpak search results; refresh the Permissions tab after installation.
 
