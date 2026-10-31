@@ -33,7 +33,10 @@ jobs:
           runuser -u nobody -- python tests/setup_store_smoke.py
           runuser -u nobody -- python tests/snapshot_smoke.py
           runuser -u nobody -- python tests/maintenance_smoke.py
+          runuser -u nobody -- python tests/gaming_smoke.py
+          runuser -u nobody -- python tests/developer_smoke.py
           runuser -u nobody -- python tests/github_build_smoke.py
+          runuser -u nobody -- python tests/github_release_smoke.py
           luac -p presets/hypr/hyprland.lua
           lua tests/validate-hyprland.lua presets/hypr/hyprland.lua
       - name: Isolated graphical tests (software rendering)

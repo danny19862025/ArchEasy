@@ -36,6 +36,18 @@ fn native_search_and_guided_flows() {
     system_tools::margins(&page);
     let tabs = gtk::Stack::new();
     tabs.add_named(&page, Some("software"));
+    tabs.add_named(
+        &gtk::Box::new(gtk::Orientation::Vertical, 0),
+        Some("developer"),
+    );
+    tabs.add_named(
+        &gtk::Box::new(gtk::Orientation::Vertical, 0),
+        Some("gaming"),
+    );
+    tabs.add_named(
+        &gtk::Box::new(gtk::Orientation::Vertical, 0),
+        Some("github-release"),
+    );
     ux::software(&page, &win, &tabs);
     let overlay = adw::ToastOverlay::new();
     overlay.set_child(Some(&tabs));
@@ -65,6 +77,62 @@ fn native_search_and_guided_flows() {
         .emit_clicked();
     pump(Duration::from_millis(100));
     assert!(!proceeded.get(), "Cancel must not start installation");
+    let shortcuts = descendants(&page)
+        .into_iter()
+        .find(|w| w.widget_name() == "setup-shortcuts")
+        .expect("setup shortcuts below suggested apps");
+    let chips = shortcuts
+        .prev_sibling()
+        .expect("suggested app buttons precede setup shortcuts");
+    for name in ["Hyprland", "Install from GitHub"] {
+        assert!(
+            descendants(&chips)
+                .iter()
+                .filter_map(|w| w.clone().downcast::<gtk::Button>().ok())
+                .any(|b| b.label().as_deref() == Some(name))
+        );
+    }
+    assert!(
+        !descendants(&chips)
+            .iter()
+            .filter_map(|w| w.clone().downcast::<gtk::Button>().ok())
+            .any(|b| matches!(b.label().as_deref(), Some("Firefox" | "Ghostty")))
+    );
+    let search = page.first_child().unwrap();
+    assert_eq!(search.widget_name(), "software-search");
+    let search_shortcuts = search.next_sibling().unwrap();
+    assert_eq!(search_shortcuts.widget_name(), "search-shortcuts");
+    let ghostty = descendants(&search_shortcuts)
+        .into_iter()
+        .filter_map(|w| w.downcast::<gtk::Button>().ok())
+        .find(|b| b.label().as_deref() == Some("Ghostty"))
+        .unwrap();
+    ghostty.emit_clicked();
+    assert_eq!(
+        search.clone().downcast::<gtk::Entry>().unwrap().text(),
+        "Ghostty"
+    );
+    search.downcast::<gtk::Entry>().unwrap().set_text("");
+    descendants(&chips)
+        .into_iter()
+        .find(|w| w.widget_name() == "open-github-release")
+        .unwrap()
+        .downcast::<gtk::Button>()
+        .unwrap()
+        .emit_clicked();
+    assert_eq!(tabs.visible_child_name().as_deref(), Some("github-release"));
+    tabs.set_visible_child_name("software");
+    for target in ["developer", "gaming"] {
+        descendants(&shortcuts)
+            .into_iter()
+            .find(|w| w.widget_name() == format!("open-{target}-setup"))
+            .unwrap()
+            .downcast::<gtk::Button>()
+            .unwrap()
+            .emit_clicked();
+        assert_eq!(tabs.visible_child_name().as_deref(), Some(target));
+        tabs.set_visible_child_name("software");
+    }
     let widgets = descendants(&page);
     let entry = widgets
         .iter()
@@ -242,6 +310,19 @@ fn native_search_and_guided_flows() {
         .into_iter()
         .find(|w| w.widget_name() == "archeasy-about-window" && w.is_visible())
         .unwrap();
+    assert!(
+        !descendants(&about_window)
+            .iter()
+            .any(|w| w.is::<gtk::ScrolledWindow>())
+    );
+    let support = descendants(&about_window)
+        .into_iter()
+        .find(|w| w.widget_name() == "buy-me-a-coffee")
+        .unwrap()
+        .downcast::<gtk::LinkButton>()
+        .unwrap();
+    assert_eq!(support.uri(), "https://buymeacoffee.com/danny1986");
+    assert!(descendants(&support).iter().any(|w| w.is::<gtk::Image>()));
     descendants(&about_window)
         .into_iter()
         .find(|w| w.widget_name() == "check-app-updates")

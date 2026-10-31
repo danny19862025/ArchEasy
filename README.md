@@ -145,3 +145,24 @@ References: [Timeshift commands](https://man.archlinux.org/man/timeshift.1.en), 
 Terminal selection honours `$TERMINAL` first, then `xdg-terminal-exec`, then the supported terminals above. Quoted arguments in `$TERMINAL` are parsed into arguments without shell evaluation.
 
 Installed-package removal defaults to `pacman -R`. The optional **-Rns** checkbox also removes unneeded dependencies and disables Pacman’s `.pacsave` preservation of modified package configs. The terminal still asks for transaction confirmation.
+
+## One-Click Gaming Setup
+
+The **Gaming** section installs selected gaming apps and matching 64/32-bit graphics libraries with live logs, graphical administrator authentication, and interactive transaction approval inside ArchEasy. Steam, Heroic, Lutris, MangoHud, GameMode, and Vulkan tools are selected by default; advanced tools are optional. System Check, Install Missing Packages, cancellation between stages, retry, and a completion summary are included.
+
+Setup supports x86_64 Arch systems with standard repositories. Multilib changes require explicit approval and retain a backup. Official packages are preferred, with approved Flathub fallbacks where available; no CachyOS repositories or AUR helpers are added. A desktop polkit authentication agent is required. See [Gaming setup, safety, package fallbacks, and verification](docs/gaming.md).
+
+## One-Click Developer Setup
+
+Open **Developer Tools** to select programming languages, editors, terminal utilities, containers, databases, Linux GUI toolkits and AI tools. Essentials are selected by default. Recommended/Advanced and Basic, Full Stack, Linux App and AI Developer presets are fully customizable.
+
+Review exact operations and dependencies before installing, use the expandable live logs and response field for package prompts, and retry only incomplete tools after a failure. The environment check reports tool versions and missing dependencies. Official packages are preferred; Flatpak, reviewed AUR builds and upstream Codex npm installs require explicit source choices. Services, user groups and shell profiles are not automatically configured. See [Developer Tools: manifests, sources, safety and verification](docs/developer-tools.md).
+
+
+### Install from GitHub releases
+
+Open **Install from GitHub**, paste a public `https://github.com/owner/repository` URL, and click **Inspect Repository**. Select an architecture-matched AppImage or prebuilt Linux download, review the release, source, size and checksum information, then click **Install Reviewed Release**. The page displays download progress, errors and an expandable installation log.
+
+Apps live under `~/.local/share/archeasy/apps`, with launchers in `~/.local/bin`. AppImages and archives containing desktop metadata receive a generated menu entry. **Installed GitHub Apps** on the same page tracks these installations and offers confirmed removal; app settings are retained. Existing package-manager installations are separate.
+
+This first version supports public stable releases for x86_64 and aarch64, AppImages, standalone ELF binaries, and `.tar.gz`, `.tgz`, `.tar.xz`, `.tar.bz2` and ZIP binary archives. It verifies published SHA-256/SHA-512 digests and supported checksum files, validates executable architecture, rejects unsafe archives, and never executes downloaded code during installation. Source builds, installers, private repositories and ambiguous archives require manual installation. See [release installer details](docs/github-releases.md).

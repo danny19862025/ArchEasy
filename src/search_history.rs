@@ -1,6 +1,8 @@
 use gtk::{glib, prelude::*};
 use std::path::Path;
 
+pub const QUICK_SEARCHES: [&str; 3] = ["Ghostty", "Brave", "Firefox"];
+
 pub fn load(path: &Path) -> Vec<String> {
     std::fs::read(path)
         .ok()
@@ -40,7 +42,14 @@ pub fn refresh(chips: &gtk::FlowBox, entry: &gtk::Entry) {
     while let Some(child) = chips.first_child() {
         chips.remove(&child);
     }
-    let history = load(&path());
+    let history: Vec<_> = load(&path())
+        .into_iter()
+        .filter(|query| {
+            !QUICK_SEARCHES
+                .iter()
+                .any(|name| name.eq_ignore_ascii_case(query))
+        })
+        .collect();
     chips.set_visible(!history.is_empty());
     for query in history {
         let chip = gtk::Button::with_label(&query);

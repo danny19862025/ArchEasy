@@ -66,7 +66,7 @@ pub fn icon(name: &str) -> gtk::Image {
     image.set_pixel_size(32);
     image
 }
-fn empty(entry: &gtk::Entry) -> gtk::Box {
+fn empty(entry: &gtk::Entry, tabs: &gtk::Stack) -> gtk::Box {
     let body = gtk::Box::new(gtk::Orientation::Vertical, 16);
     body.set_valign(gtk::Align::Center);
     body.set_vexpand(true);
@@ -94,14 +94,38 @@ fn empty(entry: &gtk::Entry) -> gtk::Box {
     body.append(&gtk::Label::new(Some("Discover your next Arch essential")));
     let chips = gtk::Box::new(gtk::Orientation::Horizontal, 8);
     chips.set_halign(gtk::Align::Center);
-    for name in ["Firefox", "Hyprland", "Ghostty"] {
-        let chip = gtk::Button::with_label(name);
-        chip.add_css_class("pill");
-        let entry = entry.clone();
-        chip.connect_clicked(move |_| entry.set_text(name));
-        chips.append(&chip);
-    }
+    let hyprland = gtk::Button::with_label("Hyprland");
+    hyprland.add_css_class("pill");
+    let hyprland_entry = entry.clone();
+    hyprland.connect_clicked(move |_| hyprland_entry.set_text("Hyprland"));
+    chips.append(&hyprland);
+    let github = gtk::Button::with_label("Install from GitHub");
+    github.set_widget_name("open-github-release");
+    github.add_css_class("pill");
+    let target = tabs.downgrade();
+    github.connect_clicked(move |_| {
+        if let Some(tabs) = target.upgrade() {
+            tabs.set_visible_child_name("github-release");
+        }
+    });
+    chips.append(&github);
     body.append(&chips);
+    let setups = gtk::Box::new(gtk::Orientation::Horizontal, 8);
+    setups.set_widget_name("setup-shortcuts");
+    setups.set_halign(gtk::Align::Center);
+    for (name, page) in [("Developer Tools", "developer"), ("Gaming", "gaming")] {
+        let button = gtk::Button::with_label(name);
+        button.set_widget_name(&format!("open-{page}-setup"));
+        button.add_css_class("suggested-action");
+        let tabs = tabs.downgrade();
+        button.connect_clicked(move |_| {
+            if let Some(tabs) = tabs.upgrade() {
+                tabs.set_visible_child_name(page);
+            }
+        });
+        setups.append(&button);
+    }
+    body.append(&setups);
     body
 }
 /// pacman returns download sizes in the repository metadata; never invent missing sizes.
@@ -147,6 +171,7 @@ pub(super) fn result_row(
         .use_markup(false)
         .activatable(true)
         .build();
+    row.add_css_class("search-result");
     row.set_title_lines(1);
     row.set_subtitle_lines(3);
     row.set_tooltip_text(Some(&format!("{} • {} • {}", p.name, p.version, p.remote)));
@@ -289,6 +314,16 @@ pub fn software(page: &gtk::Box, window: &gtk::ApplicationWindow, tabs: &gtk::St
     entry.set_widget_name("software-search");
     entry.set_primary_icon_name(Some("system-search-symbolic"));
     page.append(&entry);
+    let shortcuts = gtk::Box::new(gtk::Orientation::Horizontal, 8);
+    shortcuts.set_widget_name("search-shortcuts");
+    for name in search_history::QUICK_SEARCHES {
+        let button = gtk::Button::with_label(name);
+        button.add_css_class("pill");
+        let shortcut_entry = entry.clone();
+        button.connect_clicked(move |_| shortcut_entry.set_text(name));
+        shortcuts.append(&button);
+    }
+    page.append(&shortcuts);
     let history = gtk::FlowBox::new();
     history.set_widget_name("search-history");
     history.set_selection_mode(gtk::SelectionMode::None);
@@ -371,7 +406,7 @@ pub fn software(page: &gtk::Box, window: &gtk::ApplicationWindow, tabs: &gtk::St
         .child(&group)
         .build();
     let states = gtk::Stack::builder().vexpand(true).build();
-    states.add_named(&empty(&entry), Some("empty"));
+    states.add_named(&empty(&entry, tabs), Some("empty"));
     states.add_named(&scroll, Some("results"));
     states.set_visible_child_name("empty");
     page.append(&states);

@@ -5,8 +5,11 @@ mod backup_privacy;
 mod cloud;
 mod configs;
 mod custom_theme;
+mod developer;
 mod flatpak_permissions;
+mod gaming;
 mod github;
+mod github_release;
 mod maintenance;
 mod search_history;
 mod snapshots;
@@ -315,6 +318,25 @@ fn launch_terminal(args: &[String], terminals: &[&str]) -> Result<(), String> {
     ))
 }
 fn terminal(args: Vec<String>) -> Result<(), String> {
+    let directory = gaming::backend::lock_directory();
+    std::fs::create_dir_all(&directory)
+        .map_err(|e| format!("Cannot create package lock directory: {e}"))?;
+    if !available("flock") {
+        return Err("Package operations require flock (util-linux).".into());
+    }
+    let mut guarded = vec![
+        "flock".into(),
+        "--nonblock".into(),
+        "--verbose".into(),
+        "--conflict-exit-code".into(),
+        "75".into(),
+        directory
+            .join("archeasy-packages.lock")
+            .to_string_lossy()
+            .into_owned(),
+    ];
+    guarded.extend(args);
+    let args = guarded;
     let terminals = terminal_candidates(std::env::var("TERMINAL").ok().as_deref(), available);
     if terminals.is_empty() {
         return Err("Set TERMINAL or install xdg-terminal-exec, Ghostty, foot, Alacritty, WezTerm, Konsole, Kitty, GNOME Terminal, Xfce Terminal, or xterm.".into());
@@ -475,6 +497,9 @@ window.archeasy { background: @theme_bg_color; color: @theme_fg_color; }
 .archeasy .name { font-weight: 700; font-size: 17px; }
 .archeasy .config-preset .title { font-weight: 700; font-size: 17px; }
 .archeasy .featured-repository .title { font-weight: 700; font-size: 17px; }
+.archeasy .search-result label { font-size: 13px; }
+.archeasy .search-result .title { font-size: 15px; font-weight: 600; }
+.archeasy .search-result .subtitle { font-size: 13px; }
 .archeasy .heading { font-weight: 700; font-size: 18px; }
 .archeasy .badge { font-weight: 700; }
 .archeasy .card label.deps-met { color: #16845f; }
@@ -579,8 +604,8 @@ fn build_ui(app: &gtk::Application) {
         .application(app)
         .title("ArchEasy — Software made simple")
         .icon_name("archeasy")
-        .default_width(1000)
-        .default_height(760)
+        .default_width(1120)
+        .default_height(820)
         .build();
     win.add_css_class("archeasy");
     let system_dark = gtk::Settings::default()
@@ -712,9 +737,10 @@ fn build_ui(app: &gtk::Application) {
         &win,
         "ArchEasy",
         "system-software-install",
-        "A beginner-friendly software browser for Arch Linux.\n\nSearch Pacman, AUR, Flatpak, and GitHub in one place. Open package pages and start installations with your usual package manager.\n\nPacman installations include system updates. Review community AUR and GitHub build scripts before installing. Password and confirmation prompts appear in your terminal.\n\nBuilt with Rust, GTK4, and Libadwaita.",
+        "A beginner-friendly software browser and setup assistant for Arch Linux.\n\nSearch Pacman, AUR, Flatpak and GitHub. Install gaming essentials and developer tools with guided setup.\n\nReview package sources, community build scripts and system changes before approving installation. Authentication and confirmations appear in ArchEasy or the terminal, depending on the workflow.\n\nBuilt with Rust, GTK4 and libadwaita.",
     );
     about.connect_clicked(move |_| dialog.present());
+    top.append(&about::support_button(false));
     top.append(&about);
     root.append(&top);
     let maintenance = gtk::Box::new(gtk::Orientation::Horizontal, 8);
@@ -742,6 +768,9 @@ fn build_ui(app: &gtk::Application) {
     stack.set_widget_name("archeasy-tabs");
     stack.add_titled(&software, Some("software"), "Software");
     stack.add_titled(&store::installed_page(), Some("installed"), "Installed");
+    stack.add_named(&gaming::page(&win), Some("gaming"));
+    stack.add_named(&developer::page(&win), Some("developer"));
+    stack.add_named(&github_release::page(&win), Some("github-release"));
     stack.add_titled(&configs::page(&win), Some("configs"), "Configs");
     let cleaner = gtk::Box::new(gtk::Orientation::Vertical, 0);
     stack.add_titled(&cleaner, Some("appcleaner"), "AppCleaner");
@@ -777,7 +806,14 @@ fn build_ui(app: &gtk::Application) {
         .build();
     navigation.remove_css_class("linked");
     navigation.add_css_class("main-navigation");
-    root.append(&navigation);
+    root.append(
+        &gtk::ScrolledWindow::builder()
+            .hscrollbar_policy(gtk::PolicyType::Automatic)
+            .vscrollbar_policy(gtk::PolicyType::Never)
+            .propagate_natural_height(true)
+            .child(&navigation)
+            .build(),
+    );
     root.append(&stack);
     root.append(&title);
     ux::software(&software, &win, &stack);

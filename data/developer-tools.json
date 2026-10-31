@@ -1,0 +1,594 @@
+{
+  "version": 1,
+  "tools": [
+    {
+      "id": "git",
+      "title": "Git and Git LFS",
+      "category": "Essentials",
+      "packages": [
+        "git",
+        "git-lfs"
+      ],
+      "recommended": true
+    },
+    {
+      "id": "build",
+      "title": "base-devel",
+      "category": "Essentials",
+      "packages": [
+        "base-devel"
+      ],
+      "recommended": true
+    },
+    {
+      "id": "utilities",
+      "title": "curl, wget, jq and unzip",
+      "category": "Essentials",
+      "packages": [
+        "curl",
+        "wget",
+        "jq",
+        "unzip"
+      ],
+      "recommended": true
+    },
+    {
+      "id": "cmake",
+      "title": "CMake",
+      "category": "Essentials",
+      "packages": [
+        "cmake"
+      ],
+      "recommended": true
+    },
+    {
+      "id": "ninja",
+      "title": "Ninja",
+      "category": "Essentials",
+      "packages": [
+        "ninja"
+      ],
+      "recommended": true
+    },
+    {
+      "id": "pkgconf",
+      "title": "pkgconf",
+      "category": "Essentials",
+      "packages": [
+        "pkgconf"
+      ],
+      "recommended": true
+    },
+    {
+      "id": "gdb",
+      "title": "GDB",
+      "category": "Essentials",
+      "packages": [
+        "gdb"
+      ],
+      "recommended": true
+    },
+    {
+      "id": "ssh",
+      "title": "OpenSSH",
+      "category": "Essentials",
+      "packages": [
+        "openssh"
+      ],
+      "recommended": true
+    },
+    {
+      "id": "code-oss",
+      "title": "Visual Studio Code \u2014 Code - OSS",
+      "category": "Code editors",
+      "packages": [
+        "code"
+      ],
+      "conflicts": [
+        "vscode"
+      ],
+      "commands": [
+        [
+          "code",
+          "--version"
+        ]
+      ]
+    },
+    {
+      "id": "vscode",
+      "title": "Microsoft Visual Studio Code",
+      "category": "Code editors",
+      "packages": [],
+      "flatpak": "com.visualstudio.code",
+      "aur": "visual-studio-code-bin",
+      "default_source": "flatpak",
+      "conflicts": [
+        "code-oss"
+      ],
+      "note": "Microsoft build; distinct from Code - OSS. Flatpak has sandbox limitations."
+    },
+    {
+      "id": "vscodium",
+      "title": "VSCodium",
+      "category": "Code editors",
+      "packages": [],
+      "flatpak": "com.vscodium.codium",
+      "aur": "vscodium-bin",
+      "default_source": "flatpak"
+    },
+    {
+      "id": "neovim",
+      "title": "Neovim",
+      "category": "Code editors",
+      "packages": [
+        "neovim"
+      ]
+    },
+    {
+      "id": "emacs",
+      "title": "Emacs",
+      "category": "Code editors",
+      "packages": [
+        "emacs"
+      ]
+    },
+    {
+      "id": "python",
+      "title": "Python",
+      "category": "Programming languages",
+      "packages": [
+        "python"
+      ],
+      "requires": []
+    },
+    {
+      "id": "pip",
+      "title": "pip",
+      "category": "Programming languages",
+      "packages": [
+        "python-pip"
+      ],
+      "requires": [
+        "python"
+      ]
+    },
+    {
+      "id": "uv",
+      "title": "uv",
+      "category": "Programming languages",
+      "packages": [
+        "uv"
+      ],
+      "requires": [
+        "python"
+      ]
+    },
+    {
+      "id": "rust",
+      "title": "Rust via rustup",
+      "category": "Programming languages",
+      "packages": [
+        "rustup"
+      ],
+      "requires": [],
+      "note": "Rustup installs a stable user toolchain after separate approval. Existing distribution Rust is never replaced."
+    },
+    {
+      "id": "go",
+      "title": "Go",
+      "category": "Programming languages",
+      "packages": [
+        "go"
+      ],
+      "requires": []
+    },
+    {
+      "id": "node",
+      "title": "Node.js and npm",
+      "category": "Programming languages",
+      "packages": [
+        "nodejs",
+        "npm"
+      ],
+      "requires": []
+    },
+    {
+      "id": "gcc",
+      "title": "GCC",
+      "category": "Programming languages",
+      "packages": [
+        "gcc"
+      ],
+      "requires": []
+    },
+    {
+      "id": "clang",
+      "title": "Clang",
+      "category": "Programming languages",
+      "packages": [
+        "clang"
+      ],
+      "requires": []
+    },
+    {
+      "id": "llvm",
+      "title": "LLVM",
+      "category": "Programming languages",
+      "packages": [
+        "llvm"
+      ],
+      "requires": []
+    },
+    {
+      "id": "java",
+      "title": "OpenJDK",
+      "category": "Programming languages",
+      "packages": [
+        "jdk-openjdk"
+      ],
+      "requires": []
+    },
+    {
+      "id": "ruby",
+      "title": "Ruby",
+      "category": "Programming languages",
+      "packages": [
+        "ruby"
+      ],
+      "requires": []
+    },
+    {
+      "id": "php",
+      "title": "PHP",
+      "category": "Programming languages",
+      "packages": [
+        "php"
+      ],
+      "requires": []
+    },
+    {
+      "id": "fish",
+      "title": "Fish",
+      "category": "Terminal environment",
+      "packages": [
+        "fish"
+      ]
+    },
+    {
+      "id": "zsh",
+      "title": "Zsh",
+      "category": "Terminal environment",
+      "packages": [
+        "zsh"
+      ]
+    },
+    {
+      "id": "starship",
+      "title": "Starship",
+      "category": "Terminal environment",
+      "packages": [
+        "starship"
+      ]
+    },
+    {
+      "id": "kitty",
+      "title": "Kitty",
+      "category": "Terminal environment",
+      "packages": [
+        "kitty"
+      ]
+    },
+    {
+      "id": "alacritty",
+      "title": "Alacritty",
+      "category": "Terminal environment",
+      "packages": [
+        "alacritty"
+      ]
+    },
+    {
+      "id": "tmux",
+      "title": "tmux",
+      "category": "Terminal environment",
+      "packages": [
+        "tmux"
+      ]
+    },
+    {
+      "id": "fzf",
+      "title": "fzf",
+      "category": "Terminal environment",
+      "packages": [
+        "fzf"
+      ]
+    },
+    {
+      "id": "ripgrep",
+      "title": "ripgrep",
+      "category": "Terminal environment",
+      "packages": [
+        "ripgrep"
+      ]
+    },
+    {
+      "id": "bat",
+      "title": "bat",
+      "category": "Terminal environment",
+      "packages": [
+        "bat"
+      ]
+    },
+    {
+      "id": "docker",
+      "title": "Docker",
+      "category": "Container development",
+      "packages": [
+        "docker"
+      ],
+      "note": "Daemon stays disabled. Docker group membership gives root-equivalent access; no groups are changed."
+    },
+    {
+      "id": "compose",
+      "title": "Docker Compose",
+      "category": "Container development",
+      "packages": [
+        "docker-compose"
+      ],
+      "requires": [
+        "docker"
+      ]
+    },
+    {
+      "id": "podman",
+      "title": "Podman",
+      "category": "Container development",
+      "packages": [
+        "podman"
+      ],
+      "note": "Rootless containers may need existing subordinate UID/GID configuration; no account changes are made."
+    },
+    {
+      "id": "distrobox",
+      "title": "Distrobox",
+      "category": "Container development",
+      "packages": [
+        "distrobox"
+      ],
+      "requires": []
+    },
+    {
+      "id": "postgresql",
+      "title": "PostgreSQL server",
+      "category": "Database development",
+      "packages": [
+        "postgresql"
+      ],
+      "note": "Services and database initialization are not started automatically."
+    },
+    {
+      "id": "postgresql-client",
+      "title": "PostgreSQL clients",
+      "category": "Database development",
+      "packages": [
+        "postgresql-libs"
+      ],
+      "note": "Services and database initialization are not started automatically."
+    },
+    {
+      "id": "sqlite",
+      "title": "SQLite",
+      "category": "Database development",
+      "packages": [
+        "sqlite"
+      ],
+      "note": "Services and database initialization are not started automatically."
+    },
+    {
+      "id": "mariadb",
+      "title": "MariaDB server",
+      "category": "Database development",
+      "packages": [
+        "mariadb"
+      ],
+      "note": "Services and database initialization are not started automatically."
+    },
+    {
+      "id": "mariadb-client",
+      "title": "MariaDB clients",
+      "category": "Database development",
+      "packages": [
+        "mariadb-clients"
+      ],
+      "note": "Services and database initialization are not started automatically."
+    },
+    {
+      "id": "redis",
+      "title": "Redis",
+      "category": "Database development",
+      "packages": [
+        "redis"
+      ],
+      "aur": "redis",
+      "note": "Redis is not silently replaced by Valkey. If unavailable officially, explicitly opt into a reviewed AUR build."
+    },
+    {
+      "id": "gtk",
+      "title": "GTK4 and libadwaita",
+      "category": "Linux GUI development",
+      "packages": [
+        "gtk4",
+        "libadwaita"
+      ]
+    },
+    {
+      "id": "qt",
+      "title": "Qt6",
+      "category": "Linux GUI development",
+      "packages": [
+        "qt6-base",
+        "qt6-tools",
+        "qt6-declarative"
+      ]
+    },
+    {
+      "id": "meson",
+      "title": "Meson",
+      "category": "Linux GUI development",
+      "packages": [
+        "meson"
+      ]
+    },
+    {
+      "id": "flatpak-builder",
+      "title": "Flatpak Builder",
+      "category": "Linux GUI development",
+      "packages": [
+        "flatpak-builder"
+      ]
+    },
+    {
+      "id": "appstream",
+      "title": "AppStream",
+      "category": "Linux GUI development",
+      "packages": [
+        "appstream"
+      ]
+    },
+    {
+      "id": "devtools",
+      "title": "Arch devtools",
+      "category": "Linux GUI development",
+      "packages": [
+        "devtools"
+      ]
+    },
+    {
+      "id": "codex",
+      "title": "OpenAI Codex CLI",
+      "category": "AI development",
+      "packages": [
+        "openai-codex"
+      ],
+      "upstream": "npm",
+      "note": "Official Arch package preferred. Optional upstream npm installation is user-local, pinned, and runs no lifecycle scripts. Sign in separately."
+    },
+    {
+      "id": "ollama",
+      "title": "Ollama (optional)",
+      "category": "AI development",
+      "packages": [
+        "ollama"
+      ],
+      "note": "Does not start a service or download models. Models can require substantial storage and GPU memory."
+    }
+  ],
+  "presets": {
+    "Recommended": [
+      "git",
+      "build",
+      "utilities",
+      "cmake",
+      "ninja",
+      "pkgconf",
+      "gdb",
+      "ssh"
+    ],
+    "Advanced": [
+      "git",
+      "build",
+      "utilities",
+      "cmake",
+      "ninja",
+      "pkgconf",
+      "gdb",
+      "ssh",
+      "python",
+      "pip",
+      "uv",
+      "neovim",
+      "node",
+      "rust",
+      "go",
+      "clang",
+      "llvm",
+      "java",
+      "tmux",
+      "fzf",
+      "ripgrep",
+      "bat",
+      "podman",
+      "distrobox",
+      "sqlite",
+      "postgresql-client",
+      "mariadb-client",
+      "gtk",
+      "qt",
+      "meson",
+      "flatpak-builder",
+      "appstream",
+      "devtools",
+      "codex"
+    ],
+    "Basic Developer": [
+      "git",
+      "build",
+      "utilities",
+      "cmake",
+      "ninja",
+      "pkgconf",
+      "gdb",
+      "ssh",
+      "python",
+      "pip",
+      "uv",
+      "neovim"
+    ],
+    "Full Stack Developer": [
+      "git",
+      "build",
+      "utilities",
+      "cmake",
+      "ninja",
+      "pkgconf",
+      "gdb",
+      "ssh",
+      "python",
+      "pip",
+      "uv",
+      "neovim",
+      "node",
+      "sqlite",
+      "postgresql-client",
+      "mariadb-client",
+      "docker",
+      "compose"
+    ],
+    "Linux App Developer": [
+      "git",
+      "build",
+      "utilities",
+      "cmake",
+      "ninja",
+      "pkgconf",
+      "gdb",
+      "ssh",
+      "rust",
+      "gtk",
+      "qt",
+      "meson",
+      "flatpak-builder",
+      "appstream",
+      "devtools"
+    ],
+    "AI Developer": [
+      "git",
+      "build",
+      "utilities",
+      "python",
+      "pip",
+      "uv",
+      "node",
+      "codex"
+    ]
+  }
+}

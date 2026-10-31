@@ -24,7 +24,10 @@ jobs:
           runuser -u nobody -- python tests/setup_store_smoke.py
           runuser -u nobody -- python tests/snapshot_smoke.py
           runuser -u nobody -- python tests/maintenance_smoke.py
+          runuser -u nobody -- python tests/gaming_smoke.py
+          runuser -u nobody -- python tests/developer_smoke.py
           runuser -u nobody -- python tests/github_build_smoke.py
+          runuser -u nobody -- python tests/github_release_smoke.py
       - name: Isolated graphical tests (software rendering)
         run: |
           chmod -R a+rX target
