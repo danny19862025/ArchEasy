@@ -20,7 +20,7 @@ The **Software Centre** home page, with the integrated workbench sidebar and qui
 
 Configs, with built-in presets and backup controls:
 
-![ArchEasy Configs tab](assets/screenshots/configs.png)
+![ArchEasy Configs page with presets, backup controls and config timeline](assets/screenshots/configs-workbench.png)
 
 Installed software, with animated percentage circles by source:
 
