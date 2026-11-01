@@ -16,7 +16,7 @@ Diagnostics are read-only. Supported changes—Creator package installation, GNO
 
 The **Software Centre** home page, with the integrated workbench sidebar and quick access to app search, Developer Tools, and Gaming:
 
-![ArchEasy Software Centre with the integrated workbench sidebar](assets/screenshots/store.png)
+![ArchEasy Software Centre with the integrated workbench sidebar](assets/screenshots/software-centre.png)
 
 Configs, with built-in presets and backup controls:
 
