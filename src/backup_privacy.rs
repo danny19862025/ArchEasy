@@ -20,6 +20,7 @@ mod tests {
             ".config/google-chrome/Default/Cookies",
             ".mozilla/firefox/profile",
             ".config/rclone/rclone.conf",
+            ".config/archeasy/ask-ai/accounts.json",
             ".var/app/org.mozilla.firefox/data",
         ] {
             assert!(excluded(Path::new(path)), "{path}");
@@ -27,6 +28,7 @@ mod tests {
         for path in [
             ".ssh-notes",
             ".config/kitty",
+            ".config/archeasy/ask-ai-notes",
             ".config/chromium-theme",
             "Projects/app",
         ] {

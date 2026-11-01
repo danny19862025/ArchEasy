@@ -530,55 +530,6 @@ fn wrap_labels(widget: &gtk::Widget) {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    #[test]
-    fn embedded_sample_protocol_works_without_persistent_poll_logs() {
-        let result = crate::management::inspect(json!({"action":"sample"})).unwrap();
-        let value: Value = serde_json::from_str(&result).unwrap();
-        assert!(value["memory"].is_object());
-        assert!(value["sensors"].is_array());
-    }
-    #[test]
-    fn cpu_delta_handles_first_sample_and_resets() {
-        assert!(sample_delta(&Value::Null, &Value::Null).is_none());
-        assert_eq!(
-            sample_delta(
-                &json!({"cpu_ticks":{"total":100,"idle":50}}),
-                &json!({"cpu_ticks":{"total":200,"idle":100}})
-            ),
-            Some(50.0)
-        );
-        assert!(
-            sample_delta(
-                &json!({"cpu_ticks":{"total":200,"idle":100}}),
-                &json!({"cpu_ticks":{"total":100,"idle":50}})
-            )
-            .is_none()
-        );
-    }
-    #[test]
-    #[ignore = "requires isolated graphical session; constructs widgets only"]
-    fn pages_build_without_changes() {
-        adw::init().unwrap();
-        let window = gtk::ApplicationWindow::builder().build();
-        for title in [
-            "System Health",
-            "Creator Studio",
-            "Desktop Customisation",
-            "System Rescue",
-            "Disk Manager",
-            "Network & Security",
-            "Laptop Optimisation",
-            "Migration & Dotfiles",
-        ] {
-            let page = page(&window, title);
-            assert!(page.first_child().is_some());
-        }
-    }
-}
-
 /// Keep every page discoverable without opening a menu. The sidebar scrolls
 /// independently of page content and GTK supplies keyboard selection handling.
 pub fn navigation(stack: &gtk::Stack) -> gtk::ScrolledWindow {
@@ -639,4 +590,53 @@ pub fn software_categories(body: &gtk::Box) {
     popover.set_child(Some(&choices));
     menu.set_popover(Some(&popover));
     body.prepend(&menu);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn embedded_sample_protocol_works_without_persistent_poll_logs() {
+        let result = crate::management::inspect(json!({"action":"sample"})).unwrap();
+        let value: Value = serde_json::from_str(&result).unwrap();
+        assert!(value["memory"].is_object());
+        assert!(value["sensors"].is_array());
+    }
+    #[test]
+    fn cpu_delta_handles_first_sample_and_resets() {
+        assert!(sample_delta(&Value::Null, &Value::Null).is_none());
+        assert_eq!(
+            sample_delta(
+                &json!({"cpu_ticks":{"total":100,"idle":50}}),
+                &json!({"cpu_ticks":{"total":200,"idle":100}})
+            ),
+            Some(50.0)
+        );
+        assert!(
+            sample_delta(
+                &json!({"cpu_ticks":{"total":200,"idle":100}}),
+                &json!({"cpu_ticks":{"total":100,"idle":50}})
+            )
+            .is_none()
+        );
+    }
+    #[test]
+    #[ignore = "requires isolated graphical session; constructs widgets only"]
+    fn pages_build_without_changes() {
+        adw::init().unwrap();
+        let window = gtk::ApplicationWindow::builder().build();
+        for title in [
+            "System Health",
+            "Creator Studio",
+            "Desktop Customisation",
+            "System Rescue",
+            "Disk Manager",
+            "Network & Security",
+            "Laptop Optimisation",
+            "Migration & Dotfiles",
+        ] {
+            let page = page(&window, title);
+            assert!(page.first_child().is_some());
+        }
+    }
 }

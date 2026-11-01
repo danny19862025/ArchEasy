@@ -1,6 +1,7 @@
 mod about;
 mod appcleaner;
 mod appearance;
+mod ask_ai;
 mod backup_privacy;
 mod cloud;
 mod configs;
@@ -739,13 +740,20 @@ fn build_ui(app: &gtk::Application) {
         "A beginner-friendly software browser and setup assistant for Arch Linux.\n\nSearch Pacman, AUR, Flatpak and GitHub. Install gaming essentials and developer tools with guided setup.\n\nReview package sources, community build scripts and system changes before approving installation. Authentication and confirmations appear in ArchEasy or the terminal, depending on the workflow.\n\nBuilt with Rust, GTK4 and libadwaita.",
     );
     about.connect_clicked(move |_| dialog.present());
-    top.append(&about::support_button(false));
     top.append(&about);
     root.append(&top);
     let maintenance = gtk::Box::new(gtk::Orientation::Horizontal, 8);
     maintenance.append(&setup_arch);
     maintenance.append(&update);
     snapshots::button(&maintenance, &win);
+    let ask_ai_tab = gtk::ToggleButton::new();
+    ask_ai_tab.set_widget_name("ask-ai-tab");
+    ask_ai_tab.set_tooltip_text(Some("Ask AI about packages and troubleshooting"));
+    let ask_ai_label = gtk::Box::new(gtk::Orientation::Horizontal, 8);
+    ask_ai_label.append(&gtk::Label::new(Some("✨")));
+    ask_ai_label.append(&gtk::Label::new(Some("Ask AI")));
+    ask_ai_tab.set_child(Some(&ask_ai_label));
+    maintenance.append(&ask_ai_tab);
     root.append(&maintenance);
     let update_status = label("", "subtitle");
     update_status.set_wrap(true);
@@ -765,7 +773,26 @@ fn build_ui(app: &gtk::Application) {
     software.set_vexpand(true);
     let stack = gtk::Stack::builder().vexpand(true).build();
     stack.set_widget_name("archeasy-tabs");
+    stack.set_margin_start(18);
     stack.add_titled(&software, Some("software"), "Software Centre");
+    // Untitled pages stay out of StackSidebar; the top tab opens this page.
+    stack.add_named(&ask_ai::page(), Some("ask-ai"));
+    let weak_stack = stack.downgrade();
+    ask_ai_tab.connect_toggled(move |tab| {
+        if let Some(stack) = weak_stack.upgrade() {
+            if tab.is_active() {
+                stack.set_visible_child_name("ask-ai");
+            } else if stack.visible_child_name().as_deref() == Some("ask-ai") {
+                stack.set_visible_child_name("software");
+            }
+        }
+    });
+    let weak_tab = ask_ai_tab.downgrade();
+    stack.connect_visible_child_name_notify(move |stack| {
+        if let Some(tab) = weak_tab.upgrade() {
+            tab.set_active(stack.visible_child_name().as_deref() == Some("ask-ai"));
+        }
+    });
     stack.add_titled(&store::installed_page(), Some("installed"), "Installed");
     stack.add_titled(&gaming::page(&win), Some("gaming"), "Gaming Setup");
     stack.add_titled(&developer::page(&win), Some("developer"), "Developer Tools");

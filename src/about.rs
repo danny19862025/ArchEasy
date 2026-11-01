@@ -185,6 +185,11 @@ pub fn window(
     animate_open(&body);
     // Natural content sizing keeps every control visible; no nested scrolling.
     window.set_child(Some(&body));
+    window.connect_map(move |_| {
+        // Keep keyboard focus on a control instead of selecting the description.
+        close.grab_focus();
+        description.select_region(0, 0);
+    });
     let keys = gtk::EventControllerKey::new();
     let weak = window.downgrade();
     keys.connect_key_pressed(move |_, key, _, _| {

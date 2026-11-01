@@ -97,7 +97,7 @@ fn snapshot_rejects_staging_overlap_before_creating_or_changing_directories() {
     let home = fixture.home();
     let selected = home.join(".config/example");
     let staging = selected.join("cache/cloud-staging");
-    let error = core::snapshot(&home, &[selected.clone()], &staging).unwrap_err();
+    let error = core::snapshot(&home, std::slice::from_ref(&selected), &staging).unwrap_err();
     assert!(error.contains("overlap"), "{error}");
     assert!(!selected.join("cache").exists());
 
@@ -105,7 +105,7 @@ fn snapshot_rejects_staging_overlap_before_creating_or_changing_directories() {
     fs::set_permissions(&staging, fs::Permissions::from_mode(0o750)).unwrap();
     fs::write(staging.join("old-backup"), b"keep me").unwrap();
     for source in [&selected, &staging, &staging.join("old-backup")] {
-        let error = core::snapshot(&home, &[source.clone()], &staging).unwrap_err();
+        let error = core::snapshot(&home, std::slice::from_ref(source), &staging).unwrap_err();
         assert!(error.contains("overlap"), "{error}");
     }
     assert_eq!(
@@ -117,7 +117,12 @@ fn snapshot_rejects_staging_overlap_before_creating_or_changing_directories() {
 
     let alias = fixture.0.join("stage-alias");
     symlink(&selected, &alias).unwrap();
-    let error = core::snapshot(&home, &[selected.clone()], &alias.join("new/stage")).unwrap_err();
+    let error = core::snapshot(
+        &home,
+        std::slice::from_ref(&selected),
+        &alias.join("new/stage"),
+    )
+    .unwrap_err();
     assert!(error.contains("overlap"), "{error}");
     assert!(!selected.join("new").exists());
 

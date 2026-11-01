@@ -172,3 +172,7 @@ Open **Install from GitHub**, paste a public `https://github.com/owner/repositor
 Apps live under `~/.local/share/archeasy/apps`, with launchers in `~/.local/bin`. AppImages and archives containing desktop metadata receive a generated menu entry. **Installed GitHub Apps** on the same page tracks these installations and offers confirmed removal; app settings are retained. Existing package-manager installations are separate.
 
 This first version supports public stable releases for x86_64 and aarch64, AppImages, standalone ELF binaries, and `.tar.gz`, `.tgz`, `.tar.xz`, `.tar.bz2` and ZIP binary archives. It verifies published SHA-256/SHA-512 digests and supported checksum files, validates executable architecture, rejects unsafe archives, and never executes downloaded code during installation. Source builds, installers, private repositories and ambiguous archives require manual installation. See [release installer details](docs/github-releases.md).
+
+## Ask AI
+
+Ask about Arch Linux packages and troubleshooting inside ArchEasy using the **✨ Ask AI** top tab beside **Snapshots & backups…**. Choose ChatGPT, Gemini or Claude. **Continue with ChatGPT** uses an eligible ChatGPT plan; Gemini and Claude use your own API keys and their API billing/quotas. Keys are kept only in memory while that provider is selected. Chat suggests actions but never runs commands. See [sign-in, privacy and dependencies](docs/ask-ai.md).
