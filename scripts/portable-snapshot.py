@@ -13,7 +13,8 @@ import zipfile
 
 LIMIT = 20 * 1024**3
 COUNT = 200_000
-EXCLUDED = [Path(p) for p in json.loads('''[".ssh", ".gnupg", ".mozilla", ".zen", ".netrc", ".aws", ".kube", ".config/google-chrome", ".config/chromium", ".config/BraveSoftware", ".config/microsoft-edge", ".config/zen", ".config/rclone", ".local/share/keyrings", ".local/share/kwalletd", ".var/app/org.mozilla.firefox", ".var/app/org.chromium.Chromium", ".var/app/com.google.Chrome", ".var/app/com.brave.Browser", ".var/app/app.zen_browser.zen"]''')]
+# Keep embedded for standalone restores; snapshot_smoke.py checks the shared policy.
+EXCLUDED = [Path(p) for p in json.loads('''[".ssh", ".gnupg", ".mozilla", ".zen", ".netrc", ".aws", ".kube", ".config/google-chrome", ".config/chromium", ".config/BraveSoftware", ".config/microsoft-edge", ".config/zen", ".config/rclone", ".local/share/keyrings", ".local/share/kwalletd", ".var/app/org.mozilla.firefox", ".var/app/org.chromium.Chromium", ".var/app/com.google.Chrome", ".var/app/com.brave.Browser", ".var/app/app.zen_browser.zen", ".config/archeasy/ask-ai"]''')]
 
 
 def safe(name):

@@ -87,6 +87,34 @@ class SnapshotTests(unittest.TestCase):
                 self.assertFalse(any('google-chrome' in n or '/rclone' in n or '/.ssh' in n for n in names))
                 self.assertEqual(json.loads(archive.read('manifest.json'))['skipped'], 3)
 
+    def test_ask_ai_credentials_are_excluded_from_portable_zip(self):
+        for selection in ('.config', '.config/archeasy', '.config/archeasy/ask-ai',
+                          '.config/archeasy/ask-ai/accounts.json'):
+            with self.subTest(selection=selection), tempfile.TemporaryDirectory() as tmp:
+                root = Path(tmp)
+                home = root/'home'
+                credentials = home/'.config/archeasy/ask-ai'
+                credentials.mkdir(parents=True)
+                secret = 'ask-ai-secret-regression-fixture'
+                (credentials/'accounts.json').write_text(json.dumps({
+                    'accounts': [{'access_token': secret, 'refresh_token': secret}]}))
+                (credentials/'nested').mkdir()
+                (credentials/'nested/provider-key').write_text(secret)
+                settings = home/'.config/archeasy/settings.json'
+                settings.write_text('{"theme": "dark"}')
+                snapshot.create(self.request(root, [home/selection, settings]))
+                with zipfile.ZipFile(root/'backup.zip') as archive:
+                    self.assertEqual(archive.read('home/.config/archeasy/settings.json'), settings.read_bytes())
+                    self.assertFalse(any(name.startswith('home/.config/archeasy/ask-ai')
+                                         for name in archive.namelist()))
+                    for name in archive.namelist():
+                        self.assertNotIn(secret.encode(), archive.read(name))
+                    manifest = json.loads(archive.read('manifest.json'))
+                    self.assertFalse(any(entry['path'].startswith('home/.config/archeasy/ask-ai')
+                                         for entry in manifest['entries']))
+                    self.assertIn('.config/archeasy/ask-ai', manifest['excluded_sensitive_paths'])
+                    self.assertEqual(manifest['skipped'], 1)
+
     def test_no_hard_links_falls_back_without_overwriting_files_or_links(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
