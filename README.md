@@ -14,9 +14,9 @@ Diagnostics are read-only. Supported changes—Creator package installation, GNO
 
 ## Screenshots
 
-Store (the **Software Centre** page), searching official packages:
+The **Software Centre** home page, with the integrated workbench sidebar and quick access to app search, Developer Tools, and Gaming:
 
-![ArchEasy Store with Firefox search results](assets/screenshots/store.png)
+![ArchEasy Software Centre with the integrated workbench sidebar](assets/screenshots/store.png)
 
 Configs, with built-in presets and backup controls:
 
