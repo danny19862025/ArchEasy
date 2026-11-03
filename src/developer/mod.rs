@@ -498,6 +498,13 @@ mod tests {
             all.extend(descendants(&next));
             child = next.next_sibling();
         }
+        // Collapsed expanders can keep their child outside the widget tree.
+        if let Some(expander) = widget.as_ref().downcast_ref::<gtk::Expander>()
+            && let Some(content) = expander.child()
+            && !all.contains(&content)
+        {
+            all.extend(descendants(&content));
+        }
         all
     }
     #[test]

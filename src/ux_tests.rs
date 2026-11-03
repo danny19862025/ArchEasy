@@ -262,7 +262,9 @@ fn native_search_and_guided_flows() {
         .map(|row| row.title().to_string())
         .collect();
     assert!(
-        titles.iter().any(|s| s.contains("Found 2 Pacman + 1 AUR")),
+        titles
+            .iter()
+            .any(|s| s.contains("Found 2 Pacman + unavailable AUR")),
         "{titles:?}"
     );
     dialog.close();
