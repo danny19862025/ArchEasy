@@ -182,6 +182,19 @@ class WorkbenchTests(unittest.TestCase):
                     with w.package_lock(): pass
             with w.package_lock(): pass
 
+    def test_official_upgrade_locks_once_and_blocks_concurrent_operation(self):
+        with tempfile.TemporaryDirectory() as folder, patch.dict(os.environ, {'XDG_RUNTIME_DIR': folder}), patch.object(core.os, 'geteuid', return_value=1000), patch.object(core, 'preflight'), patch.object(core, 'update_plan', return_value={}), patch.object(core, 'run', return_value='') as runner, patch('builtins.input', side_effect=AssertionError('Official updates must not request typed approval')):
+            result = w.dispatch({'action': 'official', 'snapshot': 'none'}, True)
+            self.assertIn('completed', result)
+            runner.assert_called_once_with(['sudo', 'pacman', '-Syu'], interactive=True)
+            runner.reset_mock()
+            with w.package_lock():
+                with self.assertRaisesRegex(w.Error, 'Another ArchEasy package operation'):
+                    w.dispatch({'action': 'official', 'snapshot': 'none'}, True)
+            runner.assert_not_called()
+            w.dispatch({'action': 'official', 'snapshot': 'none'}, True)
+            runner.assert_called_once()
+
     def test_creator_atomic_transaction_and_cancel_before_start(self):
         with tempfile.TemporaryDirectory() as folder, patch.dict(os.environ, {'XDG_RUNTIME_DIR': folder}), patch.object(w.os, 'geteuid', return_value=1000), patch.object(core, 'preflight') as preflight, patch.object(w, 'creator_plan', return_value=[{'package': 'gimp'}]), patch.object(w, 'run', return_value='') as runner:
             with patch('builtins.input', return_value='INSTALL'):

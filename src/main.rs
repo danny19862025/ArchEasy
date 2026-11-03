@@ -321,25 +321,11 @@ fn launch_terminal(args: &[String], terminals: &[&str]) -> Result<(), String> {
     ))
 }
 fn terminal(args: Vec<String>) -> Result<(), String> {
-    let directory = gaming::backend::lock_directory();
-    std::fs::create_dir_all(&directory)
-        .map_err(|e| format!("Cannot create package lock directory: {e}"))?;
-    if !available("flock") {
-        return Err("Package operations require flock (util-linux).".into());
-    }
-    let mut guarded = vec![
-        "flock".into(),
-        "--nonblock".into(),
-        "--verbose".into(),
-        "--conflict-exit-code".into(),
-        "75".into(),
-        directory
-            .join("archeasy-packages.lock")
-            .to_string_lossy()
-            .into_owned(),
-    ];
-    guarded.extend(args);
-    let args = guarded;
+    terminal_with_lock(args, true)
+}
+
+fn terminal_with_lock(args: Vec<String>, lock_in_launcher: bool) -> Result<(), String> {
+    let args = terminal_command(args, lock_in_launcher)?;
     let terminals = terminal_candidates(std::env::var("TERMINAL").ok().as_deref(), available);
     if terminals.is_empty() {
         return Err("Set TERMINAL or install xdg-terminal-exec, Ghostty, foot, Alacritty, WezTerm, Konsole, Kitty, GNOME Terminal, Xfce Terminal, or xterm.".into());
@@ -358,6 +344,31 @@ fn terminal(args: Vec<String>) -> Result<(), String> {
         Err(mpsc::TryRecvError::Empty) => glib::ControlFlow::Continue,
     });
     Ok(())
+}
+
+fn terminal_command(args: Vec<String>, lock_in_launcher: bool) -> Result<Vec<String>, String> {
+    if !lock_in_launcher {
+        return Ok(args);
+    }
+    let directory = gaming::backend::lock_directory();
+    std::fs::create_dir_all(&directory)
+        .map_err(|e| format!("Cannot create package lock directory: {e}"))?;
+    if !available("flock") {
+        return Err("Package operations require flock (util-linux).".into());
+    }
+    let mut guarded = vec![
+        "flock".into(),
+        "--nonblock".into(),
+        "--verbose".into(),
+        "--conflict-exit-code".into(),
+        "75".into(),
+        directory
+            .join("archeasy-packages.lock")
+            .to_string_lossy()
+            .into_owned(),
+    ];
+    guarded.extend(args);
+    Ok(guarded)
 }
 fn terminal_candidates(preferred: Option<&str>, has: impl Fn(&str) -> bool) -> Vec<String> {
     let mut terminals = Vec::new();

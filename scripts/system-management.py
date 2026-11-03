@@ -2,14 +2,17 @@
 All mutating operations are interactive terminal jobs, never GUI privilege escalation.
 """
 import datetime
+import errno
 import fcntl
 import json
 import os
 from pathlib import Path
 import re
 import shutil
+import struct
 import subprocess
 import sys
+import termios
 
 TERMINAL_LOG = None
 import tempfile
@@ -25,32 +28,18 @@ def run(args, cancel=None, timeout=45, accepted=(0,), interactive=False):
     if cancel is not None and cancel.is_set():
         raise OperationError('Cancelled before command started')
     try:
+        if interactive:
+            return run_terminal(args, accepted)
         with tempfile.TemporaryFile() as stdout, tempfile.TemporaryFile() as stderr:
-            child = subprocess.Popen(args, stdin=None if interactive else subprocess.DEVNULL,
-                                     stdout=subprocess.PIPE if interactive else stdout,
-                                     stderr=subprocess.STDOUT if interactive else stderr,
+            child = subprocess.Popen(args, stdin=subprocess.DEVNULL, stdout=stdout, stderr=stderr,
                                      env={**os.environ, 'LC_ALL': 'C'})
             started = time.monotonic()
-            if interactive:
-                # Stream tool output, never keyboard/password input. sudo prompts use
-                # /dev/tty. Pacman retains interactive stdin and signature checks.
-                with open(TERMINAL_LOG, 'ab') if TERMINAL_LOG else tempfile.TemporaryFile() as log:
-                    while True:
-                        block = os.read(child.stdout.fileno(), 4096)
-                        if not block:
-                            break
-                        sys.stdout.buffer.write(block)
-                        sys.stdout.buffer.flush()
-                        log.write(block)
-                        log.flush()
-                child.stdout.close()
-                child.wait()
             while child.poll() is None:
                 if os.fstat(stdout.fileno()).st_size + os.fstat(stderr.fileno()).st_size > 2 * 1024 * 1024:
                     child.kill()
                     child.wait()
                     raise OperationError('Diagnostic output exceeded 2 MiB; inspect with the native tool')
-                if not interactive and ((cancel and cancel.is_set()) or time.monotonic() - started > timeout):
+                if (cancel and cancel.is_set()) or time.monotonic() - started > timeout:
                     child.terminate()
                     try:
                         child.wait(timeout=2)
@@ -68,6 +57,44 @@ def run(args, cancel=None, timeout=45, accepted=(0,), interactive=False):
             return text.strip()
     except OSError as error:
         raise OperationError(f'{args[0]} unavailable: {error}') from error
+
+
+def run_terminal(args, accepted):
+    # A terminal output descriptor lets pacman render and flush progress bars.
+    # Keep stdin and the controlling terminal inherited: never relay or log
+    # keyboard input, including sudo passwords and transaction responses.
+    master, slave = os.openpty()
+    with os.fdopen(master, 'rb', buffering=0) as output, os.fdopen(slave, 'wb', buffering=0) as terminal:
+        attributes = termios.tcgetattr(terminal)
+        attributes[1] &= ~termios.OPOST  # The outer terminal handles newlines.
+        termios.tcsetattr(terminal, termios.TCSANOW, attributes)
+        try:
+            size = fcntl.ioctl(sys.stdout.fileno(), termios.TIOCGWINSZ, bytes(8))
+            fcntl.ioctl(terminal.fileno(), termios.TIOCSWINSZ, size)
+        except (OSError, ValueError):
+            fcntl.ioctl(terminal.fileno(), termios.TIOCSWINSZ,
+                        struct.pack('HHHH', 24, 80, 0, 0))
+        child = subprocess.Popen(args, stdin=None, stdout=terminal, stderr=subprocess.STDOUT,
+                                 env={**os.environ, 'LC_ALL': 'C'})
+        terminal.close()  # The reader must see EOF when the child closes its tty.
+        with open(TERMINAL_LOG, 'ab') if TERMINAL_LOG else tempfile.TemporaryFile() as log:
+            while True:
+                try:
+                    block = output.read(4096)
+                except OSError as error:
+                    if error.errno != errno.EIO:  # Linux PTY end of stream.
+                        raise
+                    break
+                if not block:
+                    break
+                sys.stdout.buffer.write(block)
+                sys.stdout.buffer.flush()
+                log.write(block)
+                log.flush()
+        child.wait()
+        if child.returncode not in accepted:
+            raise OperationError(f'{args[0]} failed (exit {child.returncode}); review terminal output and View Logs')
+        return ''
 
 
 def optional(args):
@@ -176,10 +203,25 @@ def preflight(lock=Path('/var/lib/pacman/db.lck'), free=None, runner=run):
 
 def update_plan(runner=run):
     # checkupdates uses a separate database, avoiding a partial-upgrade state.
-    text = runner(['checkupdates'], accepted=(0, 2))
+    source = 'Fresh repository preview from checkupdates'
+    warning = None
+    try:
+        text = runner(['checkupdates'], accepted=(0, 2))
+    except OperationError as error:
+        # Only a missing executable permits the cached preview. Do not conceal
+        # refresh, database, timeout or cancellation failures.
+        if not isinstance(error.__cause__, FileNotFoundError):
+            raise
+        text = runner(['pacman', '-Qu'], accepted=(0, 1))
+        source = 'Cached preview (may be stale)'
+        warning = ('checkupdates is not installed (provided by pacman-contrib). '
+                   'This cached list may omit updates; an empty list does not mean the system is current. '
+                   'pacman -Syu refreshes repositories and asks you to approve '
+                   'the final full transaction. Review that transaction before confirming.')
     rows = parse_updates(text)
     critical = [r['package'] for r in rows if r['package'].startswith(('linux', 'nvidia')) or r['package'] in {'systemd', 'glibc', 'mesa', 'pacman', 'openssl'}]
-    return {'official': rows, 'critical_or_reboot_review': critical,
+    return {'official': rows, 'preview_source': source, 'warning': warning,
+            'critical_or_reboot_review': critical,
             'transaction': ['sudo', 'pacman', '-Syu'],
             'reboot': 'Review after kernel, microcode, graphics or core library updates; running applications may retain old libraries.'}
 
@@ -369,15 +411,15 @@ def dispatch(request, interactive=False):
     if os.geteuid() == 0:
         raise OperationError('Run ArchEasy as your normal user; elevate only individual commands')
     if action == 'official':
+        print('Checking package locks, databases and free space…', flush=True)
         preflight()
+        print('Checking available updates…', flush=True)
         plan = update_plan()
         if TERMINAL_LOG:
             with open(TERMINAL_LOG, 'a') as log:
                 log.write('Reviewed plan candidates (final pacman transaction may differ):\n' + json.dumps(plan, indent=2) + '\n')
         print(json.dumps(plan, indent=2), flush=True)
         print('Read https://archlinux.org/news/ before approval. Pacman presents its final refreshed transaction. Reboot after kernel/core updates. No AUR or Flatpak changes are chained.', flush=True)
-        if input('Type UPGRADE to approve this full system upgrade: ') != 'UPGRADE':
-            raise OperationError('Cancelled before package transaction')
         provider = request.get('snapshot', 'none')
         if provider not in {'none', 'snapper', 'timeshift'}:
             raise OperationError('Invalid snapshot provider')
@@ -386,6 +428,7 @@ def dispatch(request, interactive=False):
                 raise OperationError('Selected snapshot provider is not eligible or conflicts with another configuration')
             dispatch({'action': 'snapshot'}, interactive=True)
         preflight()  # Recheck after review/snapshot; pacman itself owns the final lock.
+        print('Starting full system update. Enter your sudo password if requested…', flush=True)
         run(['sudo', 'pacman', '-Syu'], interactive=True)
         return 'Official full upgrade completed. Reboot may be required; review pacman.log.'
     if action == 'snapshot':

@@ -105,7 +105,7 @@ Optionally save a GitHub token in `$XDG_CONFIG_HOME/archeasy/github_token` (defa
 
 ## System updates
 
-The top-bar **System update** button and **System Updates** page share the reviewed official upgrade backend. It checks locks, competing package operations, free space, repositories and package databases, then presents a fresh `checkupdates` candidate plan. Read Arch news before typing `UPGRADE`; Pacman presents its final refreshed transaction and normal confirmation. Only `sudo pacman -Syu` runs for the official upgrade.
+The top-bar **System update** button and **System Updates** page share the reviewed official upgrade backend. It checks locks, competing package operations, free space, repositories and package databases, then presents a fresh `checkupdates` candidate plan when available, or a labelled cached preview if `checkupdates` is not installed. Cached results may be stale or omit updates. Read Arch news before updating. The terminal proceeds to sudo authentication and Pacman presents its final refreshed transaction and normal confirmation; no typed `UPGRADE` approval is required. Only `sudo pacman -Syu` runs for the official upgrade.
 
 Select an optional configured Timeshift or Snapper snapshot in the review dialog. Provider conflicts or snapshot failure stop the update. Flatpak updates are a separate action. AUR/foreign packages are listed for manual review; helpers are no longer automatically chained. Private persistent logs record results and interrupted operations. No lock files are automatically deleted. See [system management](docs/system-management.md) for dependencies, safety checks, limitations and recovery guidance.
 

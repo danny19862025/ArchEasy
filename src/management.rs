@@ -38,13 +38,19 @@ pub(crate) fn inspect(request: Value) -> Result<String, String> {
 }
 
 pub(crate) fn launch(request: Value) -> Result<(), String> {
-    crate::terminal(vec![
+    // The helper owns package/update locks for the whole transaction. A launcher
+    // flock would conflict with its independently opened lock in the child.
+    crate::terminal_with_lock(terminal_args(request), false)
+}
+
+fn terminal_args(request: Value) -> Vec<String> {
+    vec![
         "python3".into(),
         "-c".into(),
         source(),
         "--terminal".into(),
         request.to_string(),
-    ])
+    ]
 }
 
 pub fn update(snapshot: &str) -> Result<(), String> {
@@ -348,6 +354,17 @@ pub fn page(parent: &gtk::ApplicationWindow, kind: &str) -> gtk::Box {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn management_terminal_leaves_package_lock_to_helper() {
+        let args =
+            super::terminal_args(serde_json::json!({"action":"official", "snapshot":"none"}));
+        let command = crate::terminal_command(args.clone(), false).unwrap();
+        assert_eq!(command, args);
+        assert_eq!(command[0], "python3");
+        let guarded = crate::terminal_command(args, true).unwrap();
+        assert_eq!(guarded[0], "flock");
+    }
+
     #[test]
     #[ignore = "requires an isolated graphical session; builds widgets only"]
     fn management_pages_build_without_system_operations() {

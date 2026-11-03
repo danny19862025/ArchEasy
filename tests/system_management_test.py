@@ -52,6 +52,32 @@ class ManagementTests(unittest.TestCase):
             with self.assertRaises(m.OperationError):
                 m.parse_updates(value)
 
+    def test_missing_checkupdates_uses_labelled_cached_preview(self):
+        calls = []
+        def fake(args, **kwargs):
+            calls.append((args, kwargs))
+            if args == ['checkupdates']:
+                try:
+                    raise FileNotFoundError('checkupdates')
+                except FileNotFoundError as error:
+                    raise m.OperationError('checkupdates unavailable') from error
+            return 'linux 6.1 -> 6.2'
+        plan = m.update_plan(fake)
+        self.assertIn('may be stale', plan['preview_source'])
+        self.assertIn('empty list does not mean', plan['warning'])
+        self.assertEqual(plan['official'][0]['package'], 'linux')
+        self.assertEqual(calls, [(['checkupdates'], {'accepted': (0, 2)}),
+                                 (['pacman', '-Qu'], {'accepted': (0, 1)})])
+        self.assertEqual(plan['transaction'], ['sudo', 'pacman', '-Syu'])
+
+    def test_update_preview_errors_do_not_silently_fall_back(self):
+        for message in ['network failed', 'database broken', 'Cancelled or timed out']:
+            with self.subTest(message=message):
+                runner = unittest.mock.Mock(side_effect=m.OperationError(message))
+                with self.assertRaisesRegex(m.OperationError, message):
+                    m.update_plan(runner)
+                runner.assert_called_once_with(['checkupdates'], accepted=(0, 2))
+
     def test_lock_process_disk_and_database_errors(self):
         with tempfile.TemporaryDirectory() as folder:
             lock = Path(folder) / 'db.lck'
@@ -117,11 +143,11 @@ class ManagementTests(unittest.TestCase):
                 m.dispatch({'action': 'snapshot'}, interactive=True)
 
     def test_official_update_rechecks_and_stops_on_snapshot_failure(self):
-        with patch.object(m.os, 'geteuid', return_value=1000), patch.object(m, 'preflight') as preflight, patch.object(m, 'update_plan', return_value={}), patch('builtins.input', return_value='UPGRADE'), patch.object(m, 'run', return_value='') as run:
+        with patch.object(m.os, 'geteuid', return_value=1000), patch.object(m, 'preflight') as preflight, patch.object(m, 'update_plan', return_value={}), patch('builtins.input', side_effect=AssertionError('Official updates must not request typed approval')), patch.object(m, 'run', return_value='') as run:
             m.dispatch({'action': 'official'}, interactive=True)
             self.assertEqual(preflight.call_count, 2)
             run.assert_called_once_with(['sudo', 'pacman', '-Syu'], interactive=True)
-        with patch.object(m.os, 'geteuid', return_value=1000), patch.object(m, 'preflight'), patch.object(m, 'update_plan', return_value={}), patch('builtins.input', return_value='UPGRADE'), patch.object(m, 'snapshot_context', return_value=({}, 'conflict')), patch.object(m, 'run') as run:
+        with patch.object(m.os, 'geteuid', return_value=1000), patch.object(m, 'preflight'), patch.object(m, 'update_plan', return_value={}), patch('builtins.input', side_effect=AssertionError('Official updates must not request typed approval')), patch.object(m, 'snapshot_context', return_value=({}, 'conflict')), patch.object(m, 'run') as run:
             with self.assertRaises(m.OperationError):
                 m.dispatch({'action': 'official', 'snapshot': 'snapper'}, interactive=True)
             run.assert_not_called()
@@ -143,6 +169,17 @@ class ManagementTests(unittest.TestCase):
             result = m.run(['/usr/bin/python3', '-c', 'print("transaction fixture")'], interactive=True)
             self.assertEqual(result, '')
             self.assertIn('transaction fixture', (Path(folder) / 'output.log').read_text())
+
+    def test_interactive_output_has_terminal_progress_and_logs_failures(self):
+        with tempfile.TemporaryDirectory() as folder, patch.object(m, 'TERMINAL_LOG', Path(folder) / 'output.log'):
+            m.run(['/usr/bin/python3', '-c',
+                   'import os, sys; assert sys.stdout.isatty(); assert sys.stderr.isatty(); '
+                   'assert os.get_terminal_size().columns > 0; '
+                   'sys.stdout.write("Downloading 50%\\rDownloading 100%\\n"); sys.stdout.flush()'], interactive=True)
+            self.assertIn(b'Downloading 50%\rDownloading 100%', (Path(folder) / 'output.log').read_bytes())
+            with self.assertRaisesRegex(m.OperationError, 'exit 7'):
+                m.run(['/usr/bin/python3', '-c', 'import sys; print("transaction failed"); sys.exit(7)'], interactive=True)
+            self.assertIn('transaction failed', (Path(folder) / 'output.log').read_text())
 
     def test_history_does_not_recursively_record_its_own_output(self):
         with tempfile.TemporaryDirectory() as folder, patch.object(m, 'state_dir', return_value=Path(folder)):
