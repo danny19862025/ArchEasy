@@ -636,7 +636,7 @@ if __name__ == '__main__':
         if terminal:
             # Never echo imported contents or secret values. Paths are reviewable.
             print('Review operation:', json.dumps(request, indent=2), flush=True)
-            if request.get('action') not in {'creator-install', 'software-install', 'software-remove', 'official', 'restic-check', 'restic-list'} and input('Type YES to approve: ') != 'YES':
+            if request.get('action') not in {'creator-install', 'software-install', 'software-remove', 'software-flatpak-install', 'official', 'restic-check', 'restic-list'} and input('Type YES to approve: ') != 'YES':
                 raise Error('Cancelled before changes')
         if isinstance(request.get('_cancel_path'), str):
             CANCEL_PATH = Path(request['_cancel_path'])

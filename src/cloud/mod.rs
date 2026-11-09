@@ -119,11 +119,32 @@ pub fn page(window: &gtk::ApplicationWindow) -> gtk::Box {
         glib::user_config_dir(),
     )
 }
+pub(crate) fn page_with_selection(
+    window: &gtk::ApplicationWindow,
+    selected: &[PathBuf],
+) -> gtk::Box {
+    page_with_client_and_selection(
+        window,
+        Client::system(),
+        glib::home_dir(),
+        glib::user_config_dir(),
+        selected,
+    )
+}
 fn page_with_client(
     window: &gtk::ApplicationWindow,
     client: Client,
     home: PathBuf,
     config: PathBuf,
+) -> gtk::Box {
+    page_with_client_and_selection(window, client, home, config, &[])
+}
+fn page_with_client_and_selection(
+    window: &gtk::ApplicationWindow,
+    client: Client,
+    home: PathBuf,
+    config: PathBuf,
+    selected: &[PathBuf],
 ) -> gtk::Box {
     let page = gtk::Box::new(gtk::Orientation::Vertical, 10);
     page.set_widget_name("cloud-backup-page");
@@ -258,6 +279,20 @@ fn page_with_client(
     });
     for path in core::suggestions(&home, &config) {
         let _ = add_source(&choices, &sources, &home, path, &save, &count);
+    }
+    for path in selected {
+        if let Err(error) = add_source(&choices, &sources, &home, path.clone(), &save, &count) {
+            status.set_text(&format!("A selected file could not be added: {error}"));
+        }
+    }
+    let selected_checks: Vec<_> = choices
+        .borrow()
+        .iter()
+        .filter(|(_, path)| selected.contains(path))
+        .map(|(check, _)| check.clone())
+        .collect();
+    for check in selected_checks {
+        check.set_active(true);
     }
     let filtered = choices.clone();
     search.connect_search_changed(move |entry| {

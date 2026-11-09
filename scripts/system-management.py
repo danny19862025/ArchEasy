@@ -241,7 +241,7 @@ def updates():
                  'Installed Flatpaks:\n' + optional(['flatpak', 'list', '--columns=application,version,installation'])]
     for scope in ['--user', '--system']:
         sections.append(f'Flatpak {scope} updates:\n' + optional(['flatpak', 'remote-ls', '--updates', scope, '--columns=application,version']))
-    sections.append('AUR updates are opt-in: review foreign packages and PKGBUILDs with your separately verified helper. ArchEasy does not run helpers automatically.')
+    sections.append('System update also updates AUR packages using installed paru or yay after Pacman succeeds. Review helper and PKGBUILD prompts in the terminal. Without a helper, AUR updates are skipped.')
     sections.append('Arch news/manual intervention: https://archlinux.org/news/ — read before approval. Network notices are not evidence that an update is safe.')
     try:
         sections.append('Recent pacman history (transaction started/completed markers matter):\n' + '\n'.join(Path('/var/log/pacman.log').read_text(errors='replace').splitlines()[-120:]))
@@ -419,7 +419,7 @@ def dispatch(request, interactive=False):
             with open(TERMINAL_LOG, 'a') as log:
                 log.write('Reviewed plan candidates (final pacman transaction may differ):\n' + json.dumps(plan, indent=2) + '\n')
         print(json.dumps(plan, indent=2), flush=True)
-        print('Read https://archlinux.org/news/ before approval. Pacman presents its final refreshed transaction. Reboot after kernel/core updates. No AUR or Flatpak changes are chained.', flush=True)
+        print('Read https://archlinux.org/news/ before approval. Pacman presents its final refreshed transaction. Reboot after kernel/core updates. Flatpak updates are separate.', flush=True)
         provider = request.get('snapshot', 'none')
         if provider not in {'none', 'snapper', 'timeshift'}:
             raise OperationError('Invalid snapshot provider')
@@ -430,6 +430,16 @@ def dispatch(request, interactive=False):
         preflight()  # Recheck after review/snapshot; pacman itself owns the final lock.
         print('Starting full system update. Enter your sudo password if requested…', flush=True)
         run(['sudo', 'pacman', '-Syu'], interactive=True)
+        if request.get('aur') is True:
+            helper = next((name for name in ('paru', 'yay') if shutil.which(name)), None)
+            if helper is None:
+                return 'Official full upgrade completed. AUR updates skipped: install paru or yay to include them. Reboot may be required; review pacman.log.'
+            print(f'Updating AUR packages with {helper}. Review package and PKGBUILD prompts…', flush=True)
+            try:
+                run([helper, '-Sua'], interactive=True)
+            except OperationError as error:
+                raise OperationError(f'Official full upgrade completed, but AUR updates failed or were cancelled: {error}') from error
+            return 'Official and AUR upgrades completed. Reboot may be required; review pacman.log.'
         return 'Official full upgrade completed. Reboot may be required; review pacman.log.'
     if action == 'snapshot':
         _, backend = snapshot_context()

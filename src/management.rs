@@ -57,7 +57,7 @@ pub fn update(snapshot: &str) -> Result<(), String> {
     if !["none", "snapper", "timeshift"].contains(&snapshot) {
         return Err("Invalid snapshot provider".into());
     }
-    launch(json!({"action":"official", "snapshot":snapshot}))
+    launch(json!({"action":"official", "snapshot":snapshot, "aur":true}))
 }
 
 pub(crate) fn read_button(

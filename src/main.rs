@@ -13,6 +13,8 @@ mod github;
 mod github_release;
 mod maintenance;
 mod management;
+mod migration;
+mod migration_discovery;
 mod search_history;
 mod snapshots;
 mod store;
@@ -493,6 +495,30 @@ fn main() -> glib::ExitCode {
         eprintln!("ArchEasy wordmark font: {error}");
     }
     adw::init().expect("Libadwaita initialization");
+    if args.get(1).is_some_and(|arg| arg == "--migration-preview") {
+        let app = gtk::Application::builder()
+            .application_id("io.github.archeasy.ArchEasy.MigrationPreview")
+            .flags(gtk::gio::ApplicationFlags::NON_UNIQUE)
+            .build();
+        app.connect_activate(|app| {
+            let window = gtk::ApplicationWindow::builder()
+                .application(app)
+                .title("ArchEasy — Settings Backup Preview")
+                .default_width(850)
+                .default_height(800)
+                .build();
+            let body = gtk::Box::new(gtk::Orientation::Vertical, 16);
+            body.set_margin_top(24);
+            body.set_margin_bottom(24);
+            body.set_margin_start(24);
+            body.set_margin_end(24);
+            migration::build(&body, &window);
+            let scroll = gtk::ScrolledWindow::builder().child(&body).build();
+            window.set_child(Some(&scroll));
+            window.present();
+        });
+        return app.run_with_args(&["archeasy-migration-preview"]);
+    }
     let app = gtk::Application::builder()
         .application_id("io.github.archeasy.ArchEasy")
         .build();

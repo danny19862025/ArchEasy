@@ -152,6 +152,26 @@ class ManagementTests(unittest.TestCase):
                 m.dispatch({'action': 'official', 'snapshot': 'snapper'}, interactive=True)
             run.assert_not_called()
 
+    def test_system_update_runs_installed_aur_helper_after_pacman(self):
+        for available, expected in [({'paru', 'yay'}, 'paru'), ({'yay'}, 'yay'), (set(), None)]:
+            with self.subTest(available=available), patch.object(m.os, 'geteuid', return_value=1000), patch.object(m, 'preflight'), patch.object(m, 'update_plan', return_value={}), patch.object(m.shutil, 'which', side_effect=lambda name: '/usr/bin/' + name if name in available else None), patch.object(m, 'run', return_value='') as runner:
+                result = m.dispatch({'action': 'official', 'aur': True}, interactive=True)
+                expected_calls = [unittest.mock.call(['sudo', 'pacman', '-Syu'], interactive=True)]
+                if expected:
+                    expected_calls.append(unittest.mock.call([expected, '-Sua'], interactive=True))
+                    self.assertIn('Official and AUR upgrades completed', result)
+                else:
+                    self.assertIn('AUR updates skipped', result)
+                self.assertEqual(runner.call_args_list, expected_calls)
+
+    def test_system_update_stops_after_failed_pacman_and_reports_aur_failure(self):
+        for results, message, count in [([m.OperationError('pacman failed')], 'pacman failed', 1),
+                                        (['', m.OperationError('helper failed')], 'Official full upgrade completed, but AUR updates failed', 2)]:
+            with self.subTest(message=message), patch.object(m.os, 'geteuid', return_value=1000), patch.object(m, 'preflight'), patch.object(m, 'update_plan', return_value={}), patch.object(m.shutil, 'which', return_value='/usr/bin/yay'), patch.object(m, 'run', side_effect=results) as runner:
+                with self.assertRaisesRegex(m.OperationError, message):
+                    m.dispatch({'action': 'official', 'aur': True}, interactive=True)
+                self.assertEqual(runner.call_count, count)
+
     def test_persistent_failures_and_interrupted_state(self):
         with tempfile.TemporaryDirectory() as folder, patch.object(m, 'state_dir', return_value=Path(folder)), patch.object(m, 'dispatch', side_effect=m.OperationError('network failed')):
             with self.assertRaises(m.OperationError):

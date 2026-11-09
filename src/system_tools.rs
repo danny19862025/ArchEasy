@@ -48,8 +48,18 @@ pub fn update_dialog(parent: &gtk::ApplicationWindow, status: &gtk::Label) {
         .build();
     totals.add_prefix(&crate::ux::icon("software-update-available-symbolic"));
     summary.add(&totals);
-    let helper = None;
-    let commands = "Will run sudo pacman -Syu after lock, repository, database and disk-space checks. Flatpak is separate. AUR updates require independent helper and PKGBUILD review.";
+    let helper = ["paru", "yay"].into_iter().find(|name| available(name));
+    let commands = match helper {
+        Some("paru") => {
+            "Will run sudo pacman -Syu, then paru -Sua for AUR updates. Review package and PKGBUILD prompts in the terminal. Flatpak is separate."
+        }
+        Some(_) => {
+            "Will run sudo pacman -Syu, then yay -Sua for AUR updates. Review package and PKGBUILD prompts in the terminal. Flatpak is separate."
+        }
+        None => {
+            "Will run sudo pacman -Syu. AUR updates will be skipped: install paru or yay to include them. Flatpak is separate."
+        }
+    };
     let command_row = adw::ActionRow::builder()
         .title("Review commands")
         .subtitle(commands)

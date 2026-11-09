@@ -271,6 +271,11 @@ pub fn page(parent: &gtk::ApplicationWindow, kind: &str) -> gtk::Box {
             .build(),
     );
     body.append(&crate::label(kind, "name"));
+    if kind == "Migration & Dotfiles" {
+        crate::migration::build(&body, parent);
+        wrap_labels(body.upcast_ref());
+        return page;
+    }
     let status = status_for(&body);
     let report = gtk::TextView::builder()
         .editable(false)
@@ -448,58 +453,6 @@ pub fn page(parent: &gtk::ApplicationWindow, kind: &str) -> gtk::Box {
                 &status,
             );
         }
-        "Migration & Dotfiles" => {
-            body.append(&crate::label("Private versioned manifests; explicitly select individual user configs. Common secrets and hardware-specific paths are refused. Imports stage files for review and never overwrite live dotfiles or execute scripts.", "subtitle"));
-            let paths = entry(
-                &body,
-                "Relative files separated by commas, e.g. .bashrc,.config/kitty/kitty.conf",
-            );
-            let foreign = gtk::CheckButton::with_label(
-                "Include optional foreign/AUR package names (never build scripts)",
-            );
-            body.append(&foreign);
-            let destination = entry(&body, "Export manifest: new absolute JSON file path");
-            let export =
-                gtk::Button::with_label("Review and Export Selected Dotfiles / Package Manifest…");
-            body.append(&export);
-            let status_export = status.clone();
-            let paths_export = paths.clone();
-            export.connect_clicked(move |_| {
-                let selected: Vec<_> = paths_export.text().split(',').map(str::trim).filter(|s| !s.is_empty()).map(str::to_owned).collect();
-                match crate::management::launch(json!({"action":"migration-export", "paths":selected, "foreign":foreign.is_active(), "destination":destination.text().as_str()})) { Ok(()) => status_export.set_text("Review paths and approve in the terminal. Secret scanning can refuse export."), Err(error) => status_export.set_text(&error) }
-            });
-            let source = entry(
-                &body,
-                "Import: absolute path to an ArchEasy migration JSON manifest",
-            );
-            let preview = gtk::Button::with_label(
-                "Import Configuration / Preview Changes / Compatibility Report",
-            );
-            body.append(&preview);
-            let (done, text, input) = (status.clone(), report.clone(), source.clone());
-            preview.connect_clicked(move |_| {
-                let request = json!({"action":"migration-preview", "source":input.text().as_str()});
-                let text = text.clone();
-                crate::system_tools::task(
-                    &done,
-                    move || inspect(request),
-                    move |result| text.buffer().set_text(&result),
-                );
-            });
-            let target = entry(
-                &body,
-                "Restore staging: new absolute folder (must not exist)",
-            );
-            let stage = gtk::Button::with_label("Stage Selected Dotfiles in New Folder…");
-            body.append(&stage);
-            let status = status.clone();
-            stage.connect_clicked(move |_| {
-                let selected: Vec<_> = paths.text().split(',').map(str::trim).filter(|s| !s.is_empty()).map(str::to_owned).collect();
-                match crate::management::launch(json!({"action":"migration-stage", "source":source.text().as_str(), "destination":target.text().as_str(), "paths":selected})) { Ok(()) => status.set_text("Review selected paths in terminal; current dotfiles will stay untouched."), Err(error) => status.set_text(&error) }
-            });
-            crate::snapshots::button(&body, parent);
-            crate::system_export::button(&body, parent);
-        }
         _ => {}
     }
     read_button(
@@ -637,6 +590,29 @@ mod tests {
         ] {
             let page = page(&window, title);
             assert!(page.first_child().is_some());
+            if title == "Migration & Dotfiles" {
+                fn descendants(widget: &gtk::Widget) -> Vec<gtk::Widget> {
+                    let mut all = vec![widget.clone()];
+                    let mut child = widget.first_child();
+                    while let Some(next) = child {
+                        all.extend(descendants(&next));
+                        child = next.next_sibling();
+                    }
+                    all
+                }
+                let widgets = descendants(page.upcast_ref());
+                for title in [
+                    "Review & Create Backup…",
+                    "Review & Extract Selected Files…",
+                ] {
+                    let action = widgets
+                        .iter()
+                        .filter_map(|w| w.clone().downcast::<gtk::Button>().ok())
+                        .find(|button| button.label().as_deref() == Some(title))
+                        .unwrap();
+                    assert!(!action.is_sensitive());
+                }
+            }
         }
     }
 }
