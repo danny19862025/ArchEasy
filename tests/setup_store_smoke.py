@@ -20,10 +20,10 @@ class StoreTests(unittest.TestCase):
                 result = subprocess.run(['/usr/bin/bash', str(ROOT/'scripts/install-queue.sh'), 'Pacman', '', 'fish', 'AUR', '', 'example-bin', 'Flatpak', 'flathub', 'org.example.App', 'Pacman', '', 'kitty'], env={**os.environ, 'PATH':directory, 'TRACE':str(trace), 'FAIL':fail, 'XDG_RUNTIME_DIR':directory}, stdin=subprocess.DEVNULL, capture_output=True)
                 lines = trace.read_text().splitlines()
                 self.assertEqual(result.returncode, int(fail))
-                self.assertEqual(lines[:2], ['sudo pacman -Syu --needed -- fish', 'paru -Syu --needed -- example-bin'])
+                self.assertEqual(lines[:2], ['sudo pacman -Syu --needed -- fish', 'paru -S --needed -- example-bin'])
                 self.assertEqual(len(lines), 2 if fail == '1' else 4)
                 if fail == '0':
-                    self.assertEqual(lines[2:], ['flatpak install --user -- flathub org.example.App', 'sudo pacman -Syu --needed -- kitty'])
+                    self.assertEqual(lines[2:], ['flatpak install --user -- flathub org.example.App', 'sudo pacman -S --needed -- kitty'])
     def test_queue_rejects_entire_invalid_batch_before_installing(self):
         result = subprocess.run(['/usr/bin/bash', str(ROOT/'scripts/install-queue.sh'), 'Pacman', '', 'fish', 'Pacman', '', '--root=/tmp'], stdin=subprocess.DEVNULL, capture_output=True)
         self.assertNotEqual(result.returncode, 0)

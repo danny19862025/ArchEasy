@@ -34,12 +34,15 @@ while (( $# )); do
     fi
     printf '\nInstalling %s (%s)\n' "$package" "$source"
     case $source in
+        # Upgrade the whole system once, then install later items without
+        # repeating the full upgrade (the databases are already current).
         Pacman)
             if [[ $updated == false ]]; then sudo pacman -Syu --needed -- "$package"; updated=true;
-            else sudo pacman -Syu --needed -- "$package"; fi ;;
+            else sudo pacman -S --needed -- "$package"; fi ;;
         AUR)
-            if command -v paru >/dev/null 2>&1; then paru -Syu --needed -- "$package";
-            else yay -Syu --needed -- "$package"; fi ;;
+            if command -v paru >/dev/null 2>&1; then helper=paru; else helper=yay; fi
+            if [[ $updated == false ]]; then "$helper" -Syu --needed -- "$package"; updated=true;
+            else "$helper" -S --needed -- "$package"; fi ;;
         Flatpak) flatpak install --user -- "$remote" "$package" ;;
     esac
 done

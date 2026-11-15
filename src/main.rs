@@ -88,10 +88,16 @@ fn search(query: &str, source: &str) -> Result<Vec<Package>, String> {
         return github::search_github(query);
     }
     let terms = task_search::terms(query);
+    // Look up installed packages once per search, not once per search term.
+    let installed = match source {
+        "AUR" => output("pacman", &["-Qq"]).unwrap_or_default(),
+        "Pacman" => String::new(),
+        _ => output("flatpak", &["list", "--app", "--columns=application"]).unwrap_or_default(),
+    };
     let mut results = vec![];
     let mut errors = vec![];
     for term in terms {
-        match search_exact(&term, source) {
+        match search_exact(&term, source, &installed) {
             Ok(packages) => {
                 for p in packages {
                     if !results.iter().any(|r: &Package| {
@@ -110,7 +116,7 @@ fn search(query: &str, source: &str) -> Result<Vec<Package>, String> {
         Ok(results)
     }
 }
-fn search_exact(query: &str, source: &str) -> Result<Vec<Package>, String> {
+fn search_exact(query: &str, source: &str, installed: &str) -> Result<Vec<Package>, String> {
     match source {
         "Pacman" => {
             // Search literal terms, rather than exposing pacman's regex syntax.
@@ -152,7 +158,6 @@ fn search_exact(query: &str, source: &str) -> Result<Vec<Package>, String> {
             if let Some(error) = json["error"].as_str() {
                 return Err(error.into());
             }
-            let installed = output("pacman", &["-Qq"]).unwrap_or_default();
             Ok(json["results"]
                 .as_array()
                 .ok_or("Unexpected AUR response")?
@@ -173,11 +178,10 @@ fn search_exact(query: &str, source: &str) -> Result<Vec<Package>, String> {
                 &[
                     "search",
                     "--columns=application,name,description,version,remotes",
+                    "--",
                     query,
                 ],
             )?;
-            let installed =
-                output("flatpak", &["list", "--app", "--columns=application"]).unwrap_or_default();
             Ok(data
                 .lines()
                 .filter_map(|line| {
@@ -396,7 +400,8 @@ fn terminal_candidates(preferred: Option<&str>, has: impl Fn(&str) -> bool) -> V
         .filter(|p| has(p))
         .map(str::to_owned),
     );
-    terminals.dedup();
+    let mut seen = std::collections::HashSet::new();
+    terminals.retain(|t| seen.insert(t.clone()));
     terminals
 }
 #[cfg(test)]
@@ -438,16 +443,21 @@ fn install(p: &Package) -> Result<(), String> {
             serde_json::json!({"action":"software-flatpak-install", "package":p.name, "remote":p.remote}),
         );
     }
-    let args: Vec<String> = match p.source.as_str() {
-        "Pacman" => vec!["sudo", "pacman", "-Syu", "--needed", "--", &p.name],
-        "AUR" => { let helper = ["paru", "yay"].into_iter().find(|p| available(p)).ok_or("AUR needs paru or yay. Install a helper using the ArchWiki instructions, then reopen ArchEasy.")?; vec![helper, "-S", "--needed", "--", &p.name] },
-        _ => vec!["flatpak", "install", "--user", &p.remote, &p.name],
-    }.into_iter().map(String::from).collect();
-    terminal(args)
+    if p.source != "AUR" {
+        return Err(format!("Unsupported package source: {}", p.source));
+    }
+    let helper = ["paru", "yay"].into_iter().find(|p| available(p)).ok_or("AUR needs paru or yay. Install a helper using the ArchWiki instructions, then reopen ArchEasy.")?;
+    // -Syu: building against stale repository databases is a partial upgrade.
+    terminal(
+        [helper, "-Syu", "--needed", "--", &p.name]
+            .into_iter()
+            .map(String::from)
+            .collect(),
+    )
 }
 fn confirm_install(package: Package, proceed: impl FnOnce() + 'static) {
     if package.source != "GitHub" {
-        confirm_upgrade(package.source == "Pacman", proceed);
+        confirm_upgrade(matches!(package.source.as_str(), "Pacman" | "AUR"), proceed);
         return;
     }
     let parent = gtk::gio::Application::default()

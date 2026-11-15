@@ -33,7 +33,9 @@ pub fn queue_bar(parent: &gtk::Box, status: &gtk::Label) -> (Queue, gtk::Button)
         confirm_upgrade(requires_upgrade, move || {
         let mut args = vec!["/usr/bin/bash".into(), "-c".into(), include_str!("../scripts/install-queue.sh").into(), "archeasy-queue".into()];
         for p in packages { args.extend([p.source, p.remote, p.name]); }
-        match terminal(args) { Ok(()) => s.set_text("Queue opened in one terminal. Each package is installed in order; a failed step stops the queue. Clear the queue after checking its summary."), Err(e) => s.set_text(&e) }
+        // install-queue.sh takes the package and update locks itself; a launcher
+        // lock on the same file would make the script always refuse to run.
+        match terminal_with_lock(args, false) { Ok(()) => s.set_text("Queue opened in one terminal. Each package is installed in order; a failed step stops the queue. Clear the queue after checking its summary."), Err(e) => s.set_text(&e) }
         });
     });
     bar.append(&run);
