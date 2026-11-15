@@ -173,6 +173,7 @@ fn search_exact(query: &str, source: &str) -> Result<Vec<Package>, String> {
                 &[
                     "search",
                     "--columns=application,name,description,version,remotes",
+                    "--",
                     query,
                 ],
             )?;
@@ -396,7 +397,8 @@ fn terminal_candidates(preferred: Option<&str>, has: impl Fn(&str) -> bool) -> V
         .filter(|p| has(p))
         .map(str::to_owned),
     );
-    terminals.dedup();
+    let mut seen = std::collections::HashSet::new();
+    terminals.retain(|t| seen.insert(t.clone()));
     terminals
 }
 #[cfg(test)]
@@ -438,12 +440,16 @@ fn install(p: &Package) -> Result<(), String> {
             serde_json::json!({"action":"software-flatpak-install", "package":p.name, "remote":p.remote}),
         );
     }
-    let args: Vec<String> = match p.source.as_str() {
-        "Pacman" => vec!["sudo", "pacman", "-Syu", "--needed", "--", &p.name],
-        "AUR" => { let helper = ["paru", "yay"].into_iter().find(|p| available(p)).ok_or("AUR needs paru or yay. Install a helper using the ArchWiki instructions, then reopen ArchEasy.")?; vec![helper, "-S", "--needed", "--", &p.name] },
-        _ => vec!["flatpak", "install", "--user", &p.remote, &p.name],
-    }.into_iter().map(String::from).collect();
-    terminal(args)
+    if p.source != "AUR" {
+        return Err(format!("Unsupported package source: {}", p.source));
+    }
+    let helper = ["paru", "yay"].into_iter().find(|p| available(p)).ok_or("AUR needs paru or yay. Install a helper using the ArchWiki instructions, then reopen ArchEasy.")?;
+    terminal(
+        [helper, "-S", "--needed", "--", &p.name]
+            .into_iter()
+            .map(String::from)
+            .collect(),
+    )
 }
 fn confirm_install(package: Package, proceed: impl FnOnce() + 'static) {
     if package.source != "GitHub" {
