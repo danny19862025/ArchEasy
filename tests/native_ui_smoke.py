@@ -36,7 +36,9 @@ esac
    isolated.mkdir(parents=True)
    case_env.update(ARCHEASY_CLEANER_TEST_ROOT=str(isolated), XDG_DATA_HOME=str(isolated/'data'))
   if os.environ.get('ARCHEASY_PREBUILT_TESTS') == '1':
-   binaries = [p for p in (ROOT/'target/debug/deps').glob('archeasy-*') if p.is_file() and os.access(p, os.X_OK)]
+   # Rust 1.100+ moved test binaries from target/debug/deps to target/debug/build.
+   candidates = [*(ROOT/'target/debug/deps').glob('archeasy-*'), *(ROOT/'target/debug/build/archeasy').glob('*/out/archeasy-*')]
+   binaries = [p for p in candidates if p.is_file() and os.access(p, os.X_OK)]
    binary = max(binaries, key=lambda p: p.stat().st_mtime_ns)
    command = [str(binary), test, '--ignored', '--exact', '--test-threads=1', '--nocapture']
   else:
