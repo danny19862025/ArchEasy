@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ArchEasy — Software made simple for Arch Linux</title>
+  <meta
+    name="description"
+    content="A fast Rust + GTK4 software browser and integrated system workbench for Arch Linux. Search Pacman, AUR, Flatpak, and GitHub together, manage reviewed updates, backups, presets, gaming & developer setups."
+  />
+  <meta property="og:title" content="ArchEasy — Software made simple for Arch Linux" />
+  <meta
+    property="og:description"
+    content="Rust + GTK4/Libadwaita software centre and system workbench for Arch Linux. Pacman, AUR, Flatpak, GitHub releases, reviewed updates, encrypted backups, and one-click gaming & developer setups."
+  />
+  <meta property="og:image" content="https://danny19862025.github.io/ArchEasy/assets/software-centre.png" />
+  <meta property="og:type" content="website" />
+  <meta name="theme-color" content="#0c131d" />
+  <link rel="icon" type="image/svg+xml" href="assets/archeasy.svg" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <!-- Navigation -->
+  <header class="site-header">
+    <div class="container nav-inner">
+      <a class="brand" href="#top" aria-label="ArchEasy home">
+        <img class="brand-icon" src="assets/archeasy.svg" alt="ArchEasy icon" width="32" height="32" />
+        <span class="brand-wordmark">ArchEasy</span>
+        <span class="version-pill">v0.1.2</span>
+      </a>
+
+      <nav class="nav-links" id="nav-links" aria-label="Primary">
+        <a href="#features">Features</a>
+        <a href="#workbench">Workbench</a>
+        <a href="#install">Install</a>
+        <a href="#guides">Guides</a>
+      </nav>
+
+      <div class="nav-actions">
+        <button class="icon-btn" id="theme-toggle" type="button" aria-label="Switch to light theme" title="Toggle theme">
+          <svg id="icon-sun" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="4"></circle>
+            <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"></path>
+          </svg>
+          <svg id="icon-moon" style="display:none" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"></path>
+          </svg>
+        </button>
+
+        <a
+          class="btn btn-secondary btn-sm"
+          href="https://github.com/danny19862025/ArchEasy"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path d="M12 .5C5.65.5.5 5.65.5 12c0 5.08 3.29 9.39 7.86 10.91.58.11.79-.25.79-.56 0-.28-.01-1.02-.02-2-3.2.7-3.88-1.54-3.88-1.54-.52-1.33-1.28-1.69-1.28-1.69-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.76 2.7 1.25 3.36.96.1-.75.4-1.25.73-1.54-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.1-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.18 1.18a11.06 11.06 0 0 1 5.79 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.84 1.19 3.1 0 4.42-2.69 5.39-5.26 5.68.41.36.78 1.06.78 2.14 0 1.55-.01 2.8-.01 3.18 0 .31.21.68.8.56A11.51 11.51 0 0 0 23.5 12C23.5 5.65 18.35.5 12 .5Z"/>
+          </svg>
+          GitHub
+        </a>
+
+        <a class="btn btn-primary btn-sm nav-download-btn" href="#install">Install</a>
+
+        <button
+          class="icon-btn mobile-menu-btn"
+          id="mobile-menu-btn"
+          type="button"
+          aria-label="Toggle navigation menu"
+          aria-expanded="false"
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+            <path d="M4 7h16M4 12h16M4 17h16"></path>
+          </svg>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main id="top">
+    <!-- Hero -->
+    <section class="hero">
+      <img class="hero-watermark" src="assets/archlinux-logo.svg" alt="" aria-hidden="true" />
+      <div class="container">
+        <div class="hero-content">
+          <div class="hero-badge">
+            <span class="dot" aria-hidden="true"></span>
+            <span>Rust + GTK4 / Libadwaita &middot; Native for Arch Linux</span>
+          </div>
+
+          <h1>
+            Software made simple for <span class="gradient-text">Arch Linux</span>.
+          </h1>
+
+          <p class="hero-subtitle">
+            Search Pacman, AUR, Flatpak, and GitHub together from one clean native interface.
+            Review system updates, manage snapshots and encrypted backups, apply config presets,
+            and bootstrap gaming or developer environments—without hiding what runs under the hood.
+          </p>
+
+          <div class="hero-cta">
+            <a class="btn btn-primary btn-lg" href="#install">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M12 3v12m0 0-4-4m4 4 4-4M4 19h16"></path>
+              </svg>
+              Install v0.1.2
+            </a>
+            <a
+              class="btn btn-secondary btn-lg"
+              href="https://github.com/danny19862025/ArchEasy/releases"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              GitHub Releases
+            </a>
+            <a class="btn btn-secondary btn-lg" href="#workbench">
+              Explore Workbench
+            </a>
+          </div>
+
+          <div class="hero-meta">
+            <span>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 5 5L20 7"/></svg>
+              MIT Licensed
+            </span>
+            <span>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 5 5L20 7"/></svg>
+              Transparent Terminal Transactions
+            </span>
+            <span>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 5 5L20 7"/></svg>
+              System, Light, Dark &amp; Custom Themes
+            </span>
+          </div>
+        </div>
+
+        <!-- Interactive Screenshot Showcase -->
+        <div class="hero-showcase" id="screenshots">
+          <div class="showcase-tabs" role="tablist" aria-label="ArchEasy screenshots">
+            <button class="tab-pill active" type="button" role="tab" aria-selected="true" data-shot="software">
+              Software Centre
+            </button>
+            <button class="tab-pill" type="button" role="tab" aria-selected="false" data-shot="configs">
+              Configs &amp; Presets
+            </button>
+            <button class="tab-pill" type="button" role="tab" aria-selected="false" data-shot="installed">
+              Installed Overview
+            </button>
+          </div>
+
+          <div class="showcase-frame">
+            <div class="showcase-inner" id="showcase-trigger" role="button" tabindex="0" aria-label="Zoom screenshot">
+              <img
+                id="showcase-img"
+                src="assets/software-centre.png"
+                alt="ArchEasy Software Centre with integrated workbench sidebar and multi-source search"
+              />
+            </div>
+          </div>
+
+          <div class="showcase-caption">
+            <span id="showcase-caption-text">
+              Software Centre — unified Pacman, AUR, Flatpak, and GitHub search with the always-visible workbench sidebar.
+            </span>
+            <span class="zoom-hint">Click image to enlarge</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 4 Unified Software Sources -->
+    <section class="sources-strip" aria-label="Supported software sources">
+      <div class="container">
+        <div class="sources-grid">
+          <div class="source-card pacman">
+            <div class="source-icon" aria-hidden="true">
+              <img src="assets/archlinux-logo.svg" alt="" width="22" height="22" />
+            </div>
+            <div>
+              <h3>Pacman</h3>
+              <p>Search local synced official repos and install with reviewed <code>pacman -Syu --needed</code>.</p>
+            </div>
+          </div>
+
+          <div class="source-card aur">
+            <div class="source-icon" aria-hidden="true">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3 8 4.5v9L12 21l-8-4.5v-9L12 3Z"/><path d="M12 12 4 7.5M12 12l8-4.5M12 12v9"/></svg>
+            </div>
+            <div>
+              <h3>AUR</h3>
+              <p>Query the online AUR RPC API and build via <code>paru</code> or <code>yay</code> with full PKGBUILD review.</p>
+            </div>
+          </div>
+
+          <div class="source-card flatpak">
+            <div class="source-icon" aria-hidden="true">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M3 12h18M12 3v18"/></svg>
+            </div>
+            <div>
+              <h3>Flatpak</h3>
+              <p>Browse configured Flathub AppStream catalogs and toggle per-user sandbox permissions visually.</p>
+            </div>
+          </div>
+
+          <div class="source-card github">
+            <div class="source-icon" aria-hidden="true">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5.08-1.25-.27-2.48-1-3.5.28-1.15.28-2.35 0-3.5 0 0-1 0-3 1.5-2.64-.5-5.36-.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.403 5.403 0 0 0 4 9c0 3.5 3 5.5 6 5.5-.39.49-.68 1.05-.85 1.65-.17.6-.22 1.23-.15 1.85v4"/><path d="M9 18c-4.51 2-5-2-7-2"/></svg>
+            </div>
+            <div>
+              <h3>GitHub Builds &amp; Releases</h3>
+              <p>Review &amp; build root PKGBUILDs or install SHA-256 verified AppImages and Linux binaries directly.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Core Features -->
+    <section class="section section-alt" id="features">
+      <div class="container">
+        <div class="section-header">
+          <span class="section-eyebrow">Everything in one native app</span>
+          <h2>Built for everyday Arch Linux desktops</h2>
+          <p>
+            Fast Rust performance paired with GTK4 and Libadwaita—giving newcomers clarity
+            and power users full transparency over every package and config file.
+          </p>
+        </div>
+
+        <div class="features-grid">
+          <article class="feature-card">
+            <div class="feature-icon" aria-hidden="true">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+            </div>
+            <h3>Multi-Source Search &amp; Install Queue</h3>
+            <p>
+              Search by package name or plain task keywords like <em>“video editor like Premiere”</em>
+              with zero AI calls. Queue packages across different searches and install them in order
+              inside a single interactive terminal.
+            </p>
+            <div class="feature-tags">
+              <span class="tag">Queue</span>
+              <span class="tag">Task Search</span>
+              <span class="tag">Source Breakdown</span>
+            </div>
+          </article>
+
+          <article class="feature-card">
+            <div class="feature-icon mint" aria-hidden="true">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 16h5v5"/></svg>
+            </div>
+            <h3>Reviewed System Updates</h3>
+            <p>
+              Checks package locks, free space, and fresh <code>checkupdates</code> candidates before
+              upgrading. Optionally trigger a Timeshift or Snapper snapshot first, then run official
+              Pacman and AUR helper updates cleanly.
+            </p>
+            <div class="feature-tags">
+              <span class="tag">checkupdates</span>
+              <span class="tag">Timeshift / Snapper</span>
+              <span class="tag">Logs</span>
+            </div>
+          </article>
+
+          <article class="feature-card">
+            <div class="feature-icon lavender" aria-hidden="true">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+            </div>
+            <h3>Configs, Presets &amp; Timeline</h3>
+            <p>
+              Preview every change with a read-only dry run before applying presets like Fish,
+              Starship, Ghostty, Kitty, Fastfetch, and Hyprland. Includes ZIP/Drive backups,
+              Fish syntax validation, and automatic rollback on failure.
+            </p>
+            <div class="feature-tags">
+              <span class="tag">Dry Run</span>
+              <span class="tag">Diff Timeline</span>
+              <span class="tag">Auto Rollback</span>
+            </div>
+          </article>
+
+          <article class="feature-card">
+            <div class="feature-icon amber" aria-hidden="true">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="6" x2="10" y1="12" y2="12"/><line x1="8" x2="8" y1="10" y2="14"/><line x1="15" x2="15.01" y1="13" y2="13"/><line x1="18" x2="18.01" y1="11" y2="11"/><rect width="20" height="12" x="2" y="6" rx="2"/></svg>
+            </div>
+            <h3>One-Click Gaming &amp; Dev Setups</h3>
+            <p>
+              Install Steam, Heroic, Lutris, MangoHud, GameMode, and 64/32-bit Vulkan libraries—or
+              pick Full Stack, Linux App, and AI Developer stacks—with live logs, polkit auth,
+              and retry support.
+            </p>
+            <div class="feature-tags">
+              <span class="tag">Vulkan + Multilib</span>
+              <span class="tag">Dev Presets</span>
+              <span class="tag">Live Logs</span>
+            </div>
+          </article>
+
+          <article class="feature-card">
+            <div class="feature-icon" aria-hidden="true">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+            </div>
+            <h3>AppCleaner &amp; Flatpak Permissions</h3>
+            <p>
+              Scan leftover app settings, caches, and data folders with exact path confirmation and
+              safe desktop Trash removal. Manage per-user Flatpak allow/deny overrides without
+              memorizing CLI flags.
+            </p>
+            <div class="feature-tags">
+              <span class="tag">Safe Trash</span>
+              <span class="tag">Flatpak Overrides</span>
+              <span class="tag">Orphan Finder</span>
+            </div>
+          </article>
+
+          <article class="feature-card">
+            <div class="feature-icon mint" aria-hidden="true">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/><path d="m9 12 2 2 4-4"/></svg>
+            </div>
+            <h3>Verified GitHub Releases &amp; Ask AI</h3>
+            <p>
+              Paste any GitHub repo URL to verify SHA-256/512 checksums and install x86_64 or aarch64
+              AppImages and binaries with generated launchers. Ask ChatGPT, Gemini, or Claude
+              troubleshooting questions—suggestions only, never auto-executed.
+            </p>
+            <div class="feature-tags">
+              <span class="tag">SHA-256 Check</span>
+              <span class="tag">AppImages</span>
+              <span class="tag">✨ Ask AI</span>
+            </div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- Integrated Workbench Interactive Explorer -->
+    <section class="section" id="workbench">
+      <div class="container">
+        <div class="section-header">
+          <span class="section-eyebrow">Integrated Workbench</span>
+          <h2>One sidebar for your whole Arch desktop</h2>
+          <p>
+            Every module clearly distinguishes between read-only diagnostics, reviewed changes,
+            and guided manual recovery—so you always stay in control.
+          </p>
+        </div>
+
+        <div class="workbench-shell">
+          <aside class="wb-sidebar" role="tablist" aria-label="Workbench modules">
+            <div class="wb-sidebar-label">Workbench Modules</div>
+            <button class="wb-nav-btn active" type="button" role="tab" aria-selected="true" data-wb="updates">
+              System Updates &amp; Health
+            </button>
+            <button class="wb-nav-btn" type="button" role="tab" aria-selected="false" data-wb="gaming">
+              Gaming &amp; Creator Studio
+            </button>
+            <button class="wb-nav-btn" type="button" role="tab" aria-selected="false" data-wb="developer">
+              Developer Tools
+            </button>
+            <button class="wb-nav-btn" type="button" role="tab" aria-selected="false" data-wb="backups">
+              Backup, Restore &amp; Migration
+            </button>
+            <button class="wb-nav-btn" type="button" role="tab" aria-selected="false" data-wb="hardware">
+              Hardware, Drivers &amp; Laptop
+            </button>
+            <button class="wb-nav-btn" type="button" role="tab" aria-selected="false" data-wb="rescue">
+              Disk, Network &amp; Rescue
+            </button>
+          </aside>
+
+          <div class="wb-panel" role="tabpanel">
+            <div>
+              <div class="wb-panel-head">
+                <h3 id="wb-title">System Updates &amp; Health</h3>
+                <span class="safety-badge reviewed" id="wb-badge">Reviewed Workflow</span>
+              </div>
+              <p class="wb-lead" id="wb-lead"></p>
+              <ul class="wb-points" id="wb-points"></ul>
+            </div>
+
+            <div class="wb-panel-footer">
+              <span>Diagnostics are read-only; system changes always require your review.</span>
+              <a id="wb-doc-link" href="https://github.com/danny19862025/ArchEasy/blob/main/docs/system-management.md" target="_blank" rel="noopener noreferrer">
+                Read System Management Guide &rarr;
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Install Section -->
+    <section class="section section-alt" id="install">
+      <div class="container">
+        <div class="section-header">
+          <span class="section-eyebrow">Get Started</span>
+          <h2>Install ArchEasy on Arch Linux</h2>
+          <p>
+            Choose the prebuilt x86_64 release binary, build directly with Cargo,
+            or package it cleanly with the included Arch <code>PKGBUILD</code>.
+          </p>
+        </div>
+
+        <div class="install-box">
+          <div class="install-tabs" role="tablist" aria-label="Installation methods">
+            <button class="install-tab active" type="button" role="tab" aria-selected="true" data-install-tab="binary">
+              Binary Release (v0.1.2)
+            </button>
+            <button class="install-tab" type="button" role="tab" aria-selected="false" data-install-tab="cargo">
+              Build with Cargo
+            </button>
+            <button class="install-tab" type="button" role="tab" aria-selected="false" data-install-tab="pkgbuild">
+              Arch PKGBUILD
+            </button>
+          </div>
+
+          <div class="install-body">
+            <!-- Binary Release -->
+            <div class="install-panel active" data-install-panel="binary" role="tabpanel">
+              <p class="install-note">
+                Download <code>archeasy-0.1.2-x86_64-linux.tar.gz</code> and its <code>.sha256</code> file from
+                <a href="https://github.com/danny19862025/ArchEasy/releases" target="_blank" rel="noopener noreferrer">GitHub Releases</a>,
+                then verify and install:
+              </p>
+              <div class="code-block">
+                <button class="copy-btn" type="button">Copy</button>
+                <pre>sha256sum -c archeasy-0.1.2-x86_64-linux.tar.gz.sha256
+tar -xzf archeasy-0.1.2-x86_64-linux.tar.gz
+cd archeasy-0.1.2-x86_64-linux
+install -Dm755 archeasy "$HOME/.local/bin/archeasy"
+bash scripts/install-desktop.sh</pre>
+              </div>
+              <div class="install-foot">
+                <span>Ensure <code>~/.local/bin</code> is on your desktop session’s <code>PATH</code>.</span>
+                <a class="btn btn-primary btn-sm" href="https://github.com/danny19862025/ArchEasy/releases/latest" target="_blank" rel="noopener noreferrer">
+                  Download v0.1.2 Tarball &rarr;
+                </a>
+              </div>
+            </div>
+
+            <!-- Cargo -->
+            <div class="install-panel" data-install-panel="cargo" role="tabpanel">
+              <p class="install-note">
+                Compile the release binary from source using Rust &amp; Cargo, then register the desktop launcher and icon:
+              </p>
+              <div class="code-block">
+                <button class="copy-btn" type="button">Copy</button>
+                <pre>git clone https://github.com/danny19862025/ArchEasy.git
+cd ArchEasy
+cargo install --path . --locked
+bash scripts/install-desktop.sh</pre>
+              </div>
+              <div class="install-foot">
+                <span>Ensure <code>~/.cargo/bin</code> is on your desktop session’s <code>PATH</code>.</span>
+                <a href="https://github.com/danny19862025/ArchEasy/blob/main/docs/development.md" target="_blank" rel="noopener noreferrer">
+                  Development &amp; Build Guide &rarr;
+                </a>
+              </div>
+            </div>
+
+            <!-- PKGBUILD -->
+            <div class="install-panel" data-install-panel="pkgbuild" role="tabpanel">
+              <p class="install-note">
+                Build a native Arch package with the included VCS recipe (<code>scripts/PKGBUILD</code>) as your normal user:
+              </p>
+              <div class="code-block">
+                <button class="copy-btn" type="button">Copy</button>
+                <pre>git clone https://github.com/danny19862025/ArchEasy.git
+mkdir -p /tmp/archeasy-package
+cp ArchEasy/scripts/PKGBUILD /tmp/archeasy-package/
+cd /tmp/archeasy-package
+makepkg -si</pre>
+              </div>
+              <div class="install-foot">
+                <span>Installs the binary, desktop launcher, icon, and license files via Pacman.</span>
+                <a href="https://github.com/danny19862025/ArchEasy/blob/main/scripts/PKGBUILD" target="_blank" rel="noopener noreferrer">
+                  View scripts/PKGBUILD &rarr;
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="req-card">
+          <svg class="req-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="10"></circle>
+            <path d="M12 16v-4M12 8h.01"></path>
+          </svg>
+          <div>
+            <strong>Requirements:</strong> Built for an already-installed Arch Linux desktop.
+            Requires <strong>GTK4 4.10+</strong>, <strong>Libadwaita 1.2+</strong>, <code>pacman</code>, <code>curl</code>,
+            and a supported terminal (Ghostty, foot, Alacritty, WezTerm, Konsole, Kitty, GNOME Terminal, Xfce Terminal, or xterm).
+            Use <strong>Setup ArchEasy</strong> inside the app to configure Flatpak, Flathub, and <code>paru</code> cleanly.
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Design Philosophy -->
+    <section class="section">
+      <div class="container">
+        <div class="section-header">
+          <span class="section-eyebrow">Design Philosophy</span>
+          <h2>Beginner-friendly, never a black box</h2>
+          <p>
+            ArchEasy respects the Arch Way by keeping every privileged action visible,
+            reversible where possible, and under your direct confirmation.
+          </p>
+        </div>
+
+        <div class="principles-grid">
+          <div class="principle-card">
+            <div class="principle-num">01 / TRANSPARENT</div>
+            <h3>Real Package Manager Terminals</h3>
+            <p>
+              Installs and upgrades open in your configured terminal with normal password prompts,
+              dependency choices, and AUR PKGBUILD reviews. Nothing runs silently in the background.
+            </p>
+          </div>
+
+          <div class="principle-card">
+            <div class="principle-num">02 / SAFE BY DEFAULT</div>
+            <h3>Dry Runs, Backups &amp; Trash</h3>
+            <p>
+              Config presets show exact diffs first and back up existing files automatically.
+              AppCleaner moves files to your desktop Trash instead of permanently deleting them.
+            </p>
+          </div>
+
+          <div class="principle-card">
+            <div class="principle-num">03 / NATIVE &amp; FAST</div>
+            <h3>Rust + GTK4 &amp; Custom Themes</h3>
+            <p>
+              Written in Rust with GTK4 and Libadwaita—zero Electron overhead. Supports System,
+              Light, Dark, and full custom hex colour palettes with optional click audio and reduced-motion support.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Guides & Docs -->
+    <section class="section section-alt" id="guides">
+      <div class="container">
+        <div class="section-header">
+          <span class="section-eyebrow">Documentation</span>
+          <h2>Detailed guides &amp; verification docs</h2>
+          <p>
+            Explore the full capability matrices, safety checks, recovery boundaries, and build docs on GitHub.
+          </p>
+        </div>
+
+        <div class="guides-grid">
+          <a class="guide-card" href="https://github.com/danny19862025/ArchEasy/blob/main/docs/workbench.md" target="_blank" rel="noopener noreferrer">
+            <div class="guide-top">
+              <h3>Integrated Workbench</h3>
+              <span class="guide-arrow" aria-hidden="true">&nearr;</span>
+            </div>
+            <p>Module capability matrix, permissions, and guided recovery limitations.</p>
+          </a>
+
+          <a class="guide-card" href="https://github.com/danny19862025/ArchEasy/blob/main/docs/system-management.md" target="_blank" rel="noopener noreferrer">
+            <div class="guide-top">
+              <h3>System Management</h3>
+              <span class="guide-arrow" aria-hidden="true">&nearr;</span>
+            </div>
+            <p>Reviewed updates, snapshots, Restic backups, and hardware diagnostics.</p>
+          </a>
+
+          <a class="guide-card" href="https://github.com/danny19862025/ArchEasy/blob/main/docs/gaming.md" target="_blank" rel="noopener noreferrer">
+            <div class="guide-top">
+              <h3>Gaming Setup</h3>
+              <span class="guide-arrow" aria-hidden="true">&nearr;</span>
+            </div>
+            <p>Multilib safety, Vulkan &amp; 32-bit libraries, Flathub fallbacks, and verification.</p>
+          </a>
+
+          <a class="guide-card" href="https://github.com/danny19862025/ArchEasy/blob/main/docs/developer-tools.md" target="_blank" rel="noopener noreferrer">
+            <div class="guide-top">
+              <h3>Developer Tools</h3>
+              <span class="guide-arrow" aria-hidden="true">&nearr;</span>
+            </div>
+            <p>Tool manifests, presets, source choices, and environment checks.</p>
+          </a>
+
+          <a class="guide-card" href="https://github.com/danny19862025/ArchEasy/blob/main/docs/github-releases.md" target="_blank" rel="noopener noreferrer">
+            <div class="guide-top">
+              <h3>GitHub Releases Installer</h3>
+              <span class="guide-arrow" aria-hidden="true">&nearr;</span>
+            </div>
+            <p>Checksum verification, architecture checks, AppImages, and desktop entries.</p>
+          </a>
+
+          <a class="guide-card" href="https://github.com/danny19862025/ArchEasy/blob/main/docs/configs.md" target="_blank" rel="noopener noreferrer">
+            <div class="guide-top">
+              <h3>Configs &amp; Presets</h3>
+              <span class="guide-arrow" aria-hidden="true">&nearr;</span>
+            </div>
+            <p>Built-in stacks, community presets, Gist sharing, and config timeline history.</p>
+          </a>
+
+          <a class="guide-card" href="https://github.com/danny19862025/ArchEasy/blob/main/docs/backups.md" target="_blank" rel="noopener noreferrer">
+            <div class="guide-top">
+              <h3>Backups &amp; Transfer</h3>
+              <span class="guide-arrow" aria-hidden="true">&nearr;</span>
+            </div>
+            <p>ZIP backups, Google Drive integration, and portable system export scripts.</p>
+          </a>
+
+          <a class="guide-card" href="https://github.com/danny19862025/ArchEasy/blob/main/docs/ask-ai.md" target="_blank" rel="noopener noreferrer">
+            <div class="guide-top">
+              <h3>Ask AI</h3>
+              <span class="guide-arrow" aria-hidden="true">&nearr;</span>
+            </div>
+            <p>ChatGPT, Gemini, and Claude sign-in, privacy boundaries, and dependencies.</p>
+          </a>
+
+          <a class="guide-card" href="https://github.com/danny19862025/ArchEasy/blob/main/docs/development.md" target="_blank" rel="noopener noreferrer">
+            <div class="guide-top">
+              <h3>Development &amp; Releases</h3>
+              <span class="guide-arrow" aria-hidden="true">&nearr;</span>
+            </div>
+            <p>Building from source, running tests, and cutting release tarballs.</p>
+          </a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Footer -->
+  <footer class="site-footer">
+    <div class="container footer-inner">
+      <div class="footer-left">
+        <a class="brand" href="#top">
+          <img class="brand-icon" src="assets/archeasy.svg" alt="ArchEasy icon" width="26" height="26" />
+          <span class="brand-wordmark">ArchEasy</span>
+        </a>
+        <div class="footer-meta">
+          MIT License &middot; Copyright &copy; 2026 Danny Rudd &middot; Not affiliated with Arch Linux.
+        </div>
+      </div>
+
+      <div class="footer-links">
+        <a href="https://github.com/danny19862025/ArchEasy" target="_blank" rel="noopener noreferrer">Repository</a>
+        <a href="https://github.com/danny19862025/ArchEasy/releases" target="_blank" rel="noopener noreferrer">Releases</a>
+        <a href="https://github.com/danny19862025/ArchEasy/issues" target="_blank" rel="noopener noreferrer">Issues</a>
+        <a href="https://github.com/danny19862025/ArchEasy/blob/main/LICENSE" target="_blank" rel="noopener noreferrer">License</a>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Lightbox Modal -->
+  <div class="lightbox" id="lightbox" aria-hidden="true" role="dialog" aria-label="Screenshot preview">
+    <div class="lightbox-content">
+      <button class="lightbox-close" id="lightbox-close" type="button" aria-label="Close preview">&times;</button>
+      <img id="lightbox-img" src="" alt="" />
+      <p class="lightbox-caption" id="lightbox-caption"></p>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
