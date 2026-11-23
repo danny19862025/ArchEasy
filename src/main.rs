@@ -11,6 +11,7 @@ mod flatpak_permissions;
 mod gaming;
 mod github;
 mod github_release;
+mod live_stats;
 mod maintenance;
 mod management;
 mod migration;
@@ -597,9 +598,14 @@ window.archeasy.light { background: #f3f6fb; color: #182536; }
 .light entry { background: #ffffff; color: #182536; }
 .archeasy .suggested-action { background: #55cbb6; color: #09251f; }
 .archeasy button:disabled { opacity: 0.55; }
+window.archeasy-splash { background: transparent; box-shadow: none; }
 .archeasy .opening-title { color: #f0f7ff; font-size: 42px; font-weight: 800; letter-spacing: 1px; }
 .archeasy .opening-subtitle { color: #9cc8e3; font-size: 16px; letter-spacing: 2px; }
 "#;
+/// "Stellar": a deep-space look (void background, glass panels, coral primary
+/// actions and ice-blue live/focus accents). Loaded after the base theme so
+/// every rule here wins while the window carries the `stellar` class.
+const STELLAR_CSS: &str = include_str!("stellar.css");
 fn theme_path() -> std::path::PathBuf {
     glib::user_config_dir().join("archeasy").join("theme")
 }
@@ -609,6 +615,7 @@ fn load_theme(path: &std::path::Path, palette_path: &std::path::Path) -> u32 {
         "light" => 1,
         "dark" => 2,
         "custom" if custom_theme::Palette::try_load(palette_path).is_some() => 3,
+        "stellar" => 4,
         _ => 0,
     }
 }
@@ -616,10 +623,15 @@ fn apply_theme(window: &gtk::ApplicationWindow, selected: u32, system_dark: bool
     window.remove_css_class("light");
     window.remove_css_class("dark");
     window.remove_css_class("custom");
+    window.remove_css_class("stellar");
     match selected {
         1 => window.add_css_class("light"),
         2 => window.add_css_class("dark"),
         3 => window.add_css_class("custom"),
+        4 => {
+            window.add_css_class("dark");
+            window.add_css_class("stellar");
+        }
         _ => {}
     }
     adw::StyleManager::default().set_color_scheme(match selected {
@@ -628,7 +640,7 @@ fn apply_theme(window: &gtk::ApplicationWindow, selected: u32, system_dark: bool
         3 if custom_theme::Palette::load(&custom_theme_path()).is_light() => {
             adw::ColorScheme::ForceLight
         }
-        3 => adw::ColorScheme::ForceDark,
+        3 | 4 => adw::ColorScheme::ForceDark,
         _ => adw::ColorScheme::Default,
     });
     let _ = system_dark;
@@ -641,7 +653,10 @@ fn custom_theme_path() -> std::path::PathBuf {
 }
 fn build_ui(app: &gtk::Application) {
     let css = gtk::CssProvider::new();
-    css.load_from_data(&format!("{THEME_CSS}\n{}", appcleaner::css()));
+    css.load_from_data(&format!(
+        "{THEME_CSS}\n{}\n{STELLAR_CSS}",
+        appcleaner::css()
+    ));
     gtk::style_context_add_provider_for_display(
         &gtk::gdk::Display::default().expect("Desktop display required"),
         &css,
@@ -671,6 +686,7 @@ fn build_ui(app: &gtk::Application) {
         if let Some(window) = weak.upgrade()
             && !window.has_css_class("light")
             && !window.has_css_class("custom")
+            && !window.has_css_class("stellar")
         {
             if adw::StyleManager::default().is_dark() {
                 window.add_css_class("dark");
@@ -713,7 +729,7 @@ fn build_ui(app: &gtk::Application) {
     });
 
     top.append(&label("Theme", "subtitle"));
-    let theme = gtk::DropDown::from_strings(&["System", "Light", "Dark", "Custom"]);
+    let theme = gtk::DropDown::from_strings(&["System", "Light", "Dark", "Custom", "Stellar"]);
     theme.set_widget_name("archeasy-theme");
     theme.set_size_request(120, -1);
     theme.set_selected(selected);
@@ -732,6 +748,7 @@ fn build_ui(app: &gtk::Application) {
             1 => "light",
             2 => "dark",
             3 => "custom",
+            4 => "stellar",
             _ => "system",
         };
         let path = theme_path();
@@ -915,13 +932,14 @@ fn build_ui(app: &gtk::Application) {
     stack.set_visible_child_name("software");
 
     let background = appearance::background(&root);
-    appearance::opening_animation(&background, &title);
     let toasts = adw::ToastOverlay::new();
     toasts.set_child(Some(&background));
     win.set_child(Some(&toasts));
     ux::register_toasts(&toasts);
-    win.present();
-    ux::onboarding(&win, &stack, &setup_arch, &update);
+    appearance::splash(app, &title, move || {
+        win.present();
+        ux::onboarding(&win, &stack, &setup_arch, &update);
+    });
 }
 #[cfg(test)]
 mod tests {
@@ -938,7 +956,7 @@ mod tests {
             std::fs::write(&theme, bytes).unwrap();
             assert_eq!(load_theme(&theme, &palette), 0);
         }
-        for (value, expected) in [("system", 0), ("light\n", 1), ("dark", 2)] {
+        for (value, expected) in [("system", 0), ("light\n", 1), ("dark", 2), ("stellar", 4)] {
             std::fs::write(&theme, value).unwrap();
             assert_eq!(load_theme(&theme, &palette), expected);
         }

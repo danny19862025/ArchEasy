@@ -1,0 +1,158 @@
+/* Stellar theme, inspired by the "Orbital" observatory-glass look:
+   void #060A14 · deep glass #0B1222 · ink #E9EEF7 · mute #97A3BA · faint #7683A0
+   coral #FF7A66 (primary / selection) · ice #9ED6FF (focus / live / info)
+   ok #7FE0B4 · warn #F4C26B · bad #FF6B7A */
+
+window.archeasy.stellar {
+    background: #060a14;
+    color: #e9eef7;
+    font-family: "Unbounded", "Onest", "Inter", "Cantarell", sans-serif;
+    font-size: 13.5px;
+}
+.stellar label { color: inherit; }
+.stellar .subtitle, .stellar .dim-label { color: #97a3ba; opacity: 1; }
+.stellar .caption { color: #7683a0; }
+
+/* Display type: wide, tight, medium weight (no heavy bold). */
+.stellar .brand-wordmark { color: #e9eef7; opacity: 1; letter-spacing: 0.5px; }
+.stellar .title, .stellar .title-2 { font-weight: 500; letter-spacing: -0.5px; color: #e9eef7; }
+.stellar .heading, .stellar .name { font-weight: 600; color: #e9eef7; }
+.stellar .opening-title { color: #e9eef7; font-weight: 500; letter-spacing: 2px; }
+.stellar .opening-subtitle { color: #9ed6ff; }
+
+/* Glass panels: faint ice sheen from above, 1 px line, top rim, soft drop. */
+.stellar .card,
+.stellar .boxed-list,
+.stellar list.boxed-list,
+.stellar popover > contents,
+.stellar dialog,
+.stellar window.dialog {
+    background-color: alpha(#0b1222, 0.82);
+    background-image: linear-gradient(to bottom, alpha(#9ed6ff, 0.045), alpha(#9ed6ff, 0.0) 140px);
+    border: 1px solid alpha(#aac8f5, 0.105);
+    border-radius: 22px;
+    box-shadow: inset 0 1px alpha(#ffffff, 0.06), 0 10px 28px -12px alpha(black, 0.65);
+    color: #e9eef7;
+}
+.stellar .card:hover { border-color: alpha(#aac8f5, 0.2); }
+.stellar .badge, .stellar link, .stellar button.link label { color: #9ed6ff; }
+.stellar .card label.deps-met { color: #7fe0b4; }
+.stellar .card label.deps-missing { color: #f4c26b; }
+.stellar .error { color: #ff6b7a; }
+
+/* Buttons: secondary = raised glass; primary = coral, top-lit. */
+.stellar button,
+.stellar dropdown > button,
+.stellar dropdown {
+    background-color: alpha(#9ebef0, 0.085);
+    background-image: none;
+    color: #e9eef7;
+    border: 1px solid alpha(#aac8f5, 0.105);
+    border-radius: 11px;
+    box-shadow: inset 0 1px alpha(#ffffff, 0.05);
+    min-height: 22px;
+    font-weight: 600;
+}
+.stellar dropdown > button { border: none; box-shadow: none; background: transparent; }
+.stellar button:hover {
+    background-color: alpha(#9ebef0, 0.13);
+    background-image: none;
+    border-color: alpha(#aac8f5, 0.2);
+    box-shadow: inset 0 1px alpha(#ffffff, 0.08), 0 4px 12px -6px alpha(black, 0.6);
+}
+.stellar button:active { background-color: alpha(#9ebef0, 0.045); box-shadow: inset 0 2px 4px alpha(black, 0.35); }
+.stellar button:focus-visible { outline: 2px solid alpha(#9ed6ff, 0.85); outline-offset: 2px; }
+.stellar button:checked {
+    background-color: alpha(#ff7a66, 0.16);
+    background-image: none;
+    border-color: alpha(#ff7a66, 0.45);
+    color: #ffd9d2;
+}
+.stellar button.flat { background: transparent; border-color: transparent; box-shadow: none; }
+.stellar button.flat:hover { background-color: alpha(#9ebef0, 0.085); }
+
+.stellar .suggested-action,
+.stellar button.suggested-action {
+    background-color: #ff7a66;
+    background-image: linear-gradient(to bottom, #ff9180, #ff6e58);
+    color: #1c0a06;
+    border: 1px solid alpha(#ffb3a6, 0.6);
+    box-shadow: inset 0 1px alpha(#ffffff, 0.35), 0 6px 16px -6px alpha(#ff7a66, 0.55);
+}
+.stellar .suggested-action label { color: #1c0a06; }
+.stellar .suggested-action:hover {
+    background-image: linear-gradient(to bottom, #ffa091, #ff7a66);
+    border-color: alpha(#ffc6bc, 0.8);
+    box-shadow: inset 0 1px alpha(#ffffff, 0.4), 0 8px 20px -6px alpha(#ff7a66, 0.65);
+}
+.stellar .destructive-action { background-color: alpha(#ff6b7a, 0.18); background-image: none; color: #ffb3bb; border-color: alpha(#ff6b7a, 0.45); }
+.stellar button:disabled { opacity: 0.45; box-shadow: none; }
+
+/* Pills and filter chips */
+.stellar .pill, .stellar .filter-chip { border-radius: 999px; }
+.stellar .filter-chip { background-color: alpha(#9ebef0, 0.045); color: #97a3ba; padding: 4px 14px; }
+.stellar .filter-chip:checked { background-color: alpha(#ff7a66, 0.18); color: #ffd9d2; border-color: alpha(#ff7a66, 0.5); }
+
+/* Inputs: pill-shaped search, ice focus ring. */
+.stellar entry, .stellar searchbar entry, .stellar spinbutton, .stellar textview, .stellar textview text {
+    background-color: alpha(#9ebef0, 0.045);
+    color: #e9eef7;
+    border: 1px solid alpha(#aac8f5, 0.105);
+    border-radius: 999px;
+    caret-color: #9ed6ff;
+}
+.stellar textview, .stellar textview text { border-radius: 14px; }
+.stellar entry text { color: #e9eef7; }
+.stellar entry:focus-within { border-color: alpha(#9ed6ff, 0.6); outline: 2px solid alpha(#9ed6ff, 0.25); outline-offset: 0; }
+.stellar entry text selection, .stellar textview text selection { background-color: alpha(#9ed6ff, 0.3); }
+
+/* Lists and the navigation sidebar: active row = coral marker on glass. */
+.stellar list, .stellar listview, .stellar columnview { background: transparent; color: #e9eef7; }
+.stellar row { border-radius: 12px; }
+.stellar row:hover { background-color: alpha(#9ebef0, 0.06); }
+.stellar row:selected {
+    background-color: alpha(#ff7a66, 0.14);
+    box-shadow: inset 3px 0 #ff7a66;
+    color: #e9eef7;
+}
+.stellar row:selected label { color: #e9eef7; }
+
+.stellar #archeasy-navigation-sidebar,
+.stellar stacksidebar {
+    background-color: alpha(#0b1222, 0.7);
+    background-image: linear-gradient(to bottom, alpha(#9ed6ff, 0.04), alpha(#9ed6ff, 0.0) 160px);
+    border: 1px solid alpha(#aac8f5, 0.105);
+    border-radius: 22px;
+    padding: 8px 6px;
+}
+.stellar stacksidebar list { background: transparent; }
+.stellar stacksidebar row { padding: 9px 14px; margin: 2px 4px; color: #97a3ba; }
+.stellar stacksidebar row:selected { color: #e9eef7; }
+
+/* Tabs, switches, checks, progress. */
+.stellar stackswitcher > button:checked, .stellar notebook > header tab:checked {
+    background-color: alpha(#9ebef0, 0.13);
+    border-color: alpha(#aac8f5, 0.2);
+    color: #e9eef7;
+}
+.stellar notebook, .stellar notebook > header { background: transparent; border-color: alpha(#aac8f5, 0.105); }
+.stellar switch { background-color: alpha(#9ebef0, 0.13); border-radius: 999px; }
+.stellar switch:checked { background-color: #ff7a66; }
+.stellar switch slider { background-color: #e9eef7; }
+.stellar check:checked, .stellar radio:checked { background-color: #ff7a66; color: #1c0a06; }
+.stellar progressbar trough, .stellar levelbar trough { background-color: alpha(#9ebef0, 0.085); border-radius: 999px; }
+.stellar progressbar progress, .stellar levelbar block.filled { background-color: #9ed6ff; border-radius: 999px; }
+.stellar spinner { color: #9ed6ff; }
+
+.stellar separator { background-color: alpha(#aac8f5, 0.105); }
+.stellar scrollbar slider { background-color: alpha(#aac8f5, 0.25); border-radius: 999px; min-width: 6px; min-height: 6px; }
+.stellar scrollbar { background: transparent; }
+.stellar headerbar { background: transparent; box-shadow: none; }
+.stellar tooltip, .stellar tooltip.background {
+    background-color: #0b1222;
+    color: #e9eef7;
+    border: 1px solid alpha(#aac8f5, 0.2);
+    border-radius: 9px;
+}
+.stellar popover > contents { border-radius: 14px; padding: 6px; }
+.stellar popover modelbutton:hover { background-color: alpha(#9ebef0, 0.085); border-radius: 9px; }

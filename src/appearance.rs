@@ -57,61 +57,109 @@ fn animate_title(title: &gtk::Label) {
     });
 }
 
-/// Run once using GTK's frame clock, then remove the intro and stop ticking.
-pub fn opening_animation(overlay: &gtk::Overlay, title: &gtk::Label) {
-    if gtk::Settings::default().is_some_and(|settings| !settings.is_gtk_enable_animations()) {
-        animate_title(title);
-        return;
-    }
-    let Ok(loader) = gtk::gdk_pixbuf::PixbufLoader::with_type("svg") else {
-        animate_title(title);
-        return;
-    };
-    loader.set_size(512, 512);
-    if loader.write(LOGO).is_err() || loader.close().is_err() {
-        animate_title(title);
-        return;
-    }
-    let Some(logo) = loader.pixbuf() else {
-        animate_title(title);
-        return;
-    };
-    let intro = gtk::Overlay::builder().hexpand(true).vexpand(true).build();
-    let weak_title = title.downgrade();
-    intro.connect_unmap(move |_| {
-        if let Some(title) = weak_title.upgrade() {
+/// Opening splash: only the Arch logo, animated on its own borderless,
+/// transparent window (no app window behind it). `done` runs once when the
+/// animation ends or is skipped (click / Esc), and is where the main window
+/// gets presented.
+pub fn splash(app: &gtk::Application, title: &gtk::Label, done: impl FnOnce() + 'static) {
+    let title = title.clone();
+    let done: Rc<std::cell::RefCell<Option<Box<dyn FnOnce()>>>> =
+        Rc::new(std::cell::RefCell::new(Some(Box::new(move || {
+            done();
             animate_title(&title);
+        }))));
+    let finish = {
+        let done = done.clone();
+        move || {
+            if let Some(done) = done.borrow_mut().take() {
+                done();
+            }
         }
-    });
-    let canvas = gtk::DrawingArea::builder()
-        .hexpand(true)
-        .vexpand(true)
+    };
+    if gtk::Settings::default().is_some_and(|settings| !settings.is_gtk_enable_animations()) {
+        finish();
+        return;
+    }
+    let Some(logo) = gtk::gdk_pixbuf::PixbufLoader::with_type("svg")
+        .ok()
+        .and_then(|loader| {
+            loader.set_size(512, 512);
+            (loader.write(LOGO).is_ok() && loader.close().is_ok()).then(|| loader.pixbuf())?
+        })
+    else {
+        finish();
+        return;
+    };
+    // Maximized + transparent: the compositor centres nothing for us on
+    // Wayland, so cover the work area and draw the logo in its middle.
+    let window = gtk::Window::builder()
+        .application(app)
+        .decorated(false)
+        .maximized(true)
+        .title("ArchEasy")
         .build();
+    window.add_css_class("archeasy-splash");
+    let canvas = gtk::DrawingArea::builder().hexpand(true).vexpand(true).build();
     let elapsed = Rc::new(Cell::new(0.0_f64));
     let progress = elapsed.clone();
     canvas.set_draw_func(move |_, cr, width, height| {
         use gtk::gdk::prelude::GdkCairoContextExt;
         let t = progress.get();
         let x = f64::from(width) / 2.0;
-        let y = f64::from(height) / 2.0 - 55.0;
+        let y = f64::from(height) / 2.0;
         let reveal = (t / 0.8).clamp(0.0, 1.0);
         let ease = 1.0 - (1.0 - reveal).powi(3);
-        cr.set_source_rgb(0.035, 0.055, 0.09);
-        let _ = cr.paint();
-        let glow = gtk::cairo::RadialGradient::new(x, y, 0.0, x, y, 290.0);
-        glow.add_color_stop_rgba(0.0, 0.09, 0.58, 0.82, 0.32 * ease);
-        glow.add_color_stop_rgba(1.0, 0.09, 0.58, 0.82, 0.0);
-        if cr.set_source(&glow).is_ok() {
-            let _ = cr.paint();
-        }
-        for offset in [0.0, 0.32] {
-            let pulse = ((t - offset) / 1.5).clamp(0.0, 1.0);
-            cr.set_source_rgba(0.15, 0.67, 0.94, ease * (1.0 - pulse) * 0.28);
-            cr.set_line_width(1.5);
-            cr.arc(x, y, 105.0 + pulse * 145.0, 0.0, std::f64::consts::TAU);
-            let _ = cr.stroke();
-        }
-        let size = 220.0 * (0.72 + 0.28 * ease);
+        let leave = ((t - 1.95) / 0.45).clamp(0.0, 1.0);
+        let alpha = ease * (1.0 - leave);
+        let size = 220.0 * (0.72 + 0.28 * ease) * (1.0 + 0.12 * leave);
+        // A few moons on tilted elliptical orbits: (radius, flatten, tilt,
+        // speed rad/s, start angle, dot radius, rgb). The far half of each
+        // orbit is drawn behind the logo, the near half in front of it.
+        let orbits = [
+            (150.0, 0.34, -0.35, 2.6, 0.0, 6.0, (1.0, 0.478, 0.4)),
+            (185.0, 0.28, 0.42, -1.9, 2.1, 4.5, (0.62, 0.84, 1.0)),
+            (215.0, 0.22, -0.08, 1.4, 4.2, 3.5, (0.5, 0.88, 0.71)),
+        ];
+        let scale = 0.72 + 0.28 * ease;
+        let moons = |cr: &gtk::cairo::Context, front: bool| {
+            for (radius, flatten, tilt, speed, phase, dot, (r, g, b)) in orbits {
+                let radius = radius * scale;
+                if cr.save().is_err() {
+                    continue;
+                }
+                cr.translate(x, y);
+                cr.rotate(tilt);
+                if !front {
+                    // Orbit path, faint, drawn once (behind everything).
+                    if cr.save().is_ok() {
+                        cr.scale(1.0, flatten);
+                        cr.arc(0.0, 0.0, radius, 0.0, std::f64::consts::TAU);
+                        let _ = cr.restore();
+                    }
+                    cr.set_line_width(1.0);
+                    cr.set_source_rgba(0.62, 0.84, 1.0, 0.22 * alpha);
+                    let _ = cr.stroke();
+                }
+                let angle = phase + t * speed;
+                let in_front = angle.sin() > 0.0;
+                if in_front == front {
+                    let (mx, my) = (radius * angle.cos(), radius * flatten * angle.sin());
+                    let depth = 0.8 + 0.2 * angle.sin();
+                    let halo = gtk::cairo::RadialGradient::new(mx, my, 0.0, mx, my, dot * 3.2);
+                    halo.add_color_stop_rgba(0.0, r, g, b, 0.45 * alpha);
+                    halo.add_color_stop_rgba(1.0, r, g, b, 0.0);
+                    if cr.set_source(&halo).is_ok() {
+                        cr.arc(mx, my, dot * 3.2, 0.0, std::f64::consts::TAU);
+                        let _ = cr.fill();
+                    }
+                    cr.set_source_rgba(r, g, b, alpha);
+                    cr.arc(mx, my, dot * depth, 0.0, std::f64::consts::TAU);
+                    let _ = cr.fill();
+                }
+                let _ = cr.restore();
+            }
+        };
+        moons(cr, false);
         if cr.save().is_ok() {
             cr.translate(x - size / 2.0, y - size / 2.0 + (1.0 - ease) * 22.0);
             cr.scale(
@@ -119,71 +167,261 @@ pub fn opening_animation(overlay: &gtk::Overlay, title: &gtk::Label) {
                 size / f64::from(logo.height()),
             );
             cr.set_source_pixbuf(&logo, 0.0, 0.0);
-            let _ = cr.paint_with_alpha(ease);
+            let _ = cr.paint_with_alpha(alpha);
             let _ = cr.restore();
         }
+        moons(cr, true);
     });
-    intro.set_child(Some(&canvas));
-    let wordmark = gtk::Box::new(gtk::Orientation::Vertical, 8);
-    wordmark.set_halign(gtk::Align::Center);
-    wordmark.set_valign(gtk::Align::Center);
-    wordmark.set_margin_top(235);
-    let title = gtk::Label::new(Some("ArchEasy"));
-    title.add_css_class("opening-title");
-    wordmark.append(&title);
-    let subtitle = gtk::Label::new(Some("Software made simple"));
-    subtitle.add_css_class("opening-subtitle");
-    wordmark.append(&subtitle);
-    wordmark.set_opacity(0.0);
-    intro.add_overlay(&wordmark);
-    overlay.add_overlay(&intro);
+    window.set_child(Some(&canvas));
 
-    let weak_overlay = overlay.downgrade();
-    let weak_intro = intro.downgrade();
+    let close = {
+        let weak = window.downgrade();
+        let finish = finish.clone();
+        move || {
+            finish();
+            if let Some(window) = weak.upgrade() {
+                window.close();
+            }
+        }
+    };
     let start = Cell::new(None);
+    let tick_close = close.clone();
     canvas.add_tick_callback(move |canvas, clock| {
-        let Some(intro) = weak_intro.upgrade() else {
-            return glib::ControlFlow::Break;
-        };
         let now = clock.frame_time();
         let first = start.get().unwrap_or(now);
         start.set(Some(first));
         let t = (now - first) as f64 / 1_000_000.0;
         elapsed.set(t);
-        wordmark.set_opacity(((t - 0.25) / 0.5).clamp(0.0, 1.0));
-        intro.set_opacity(1.0 - ((t - 1.35) / 0.45).clamp(0.0, 1.0));
-        if t >= 1.8 {
-            if let Some(overlay) = weak_overlay.upgrade() {
-                overlay.remove_overlay(&intro);
-            }
+        if t >= 2.4 {
+            tick_close();
             return glib::ControlFlow::Break;
         }
         canvas.queue_draw();
         glib::ControlFlow::Continue
     });
     let click = gtk::GestureClick::new();
-    let weak_overlay = overlay.downgrade();
-    let weak_intro = intro.downgrade();
-    click.connect_pressed(move |_, _, _, _| {
-        if let (Some(overlay), Some(intro)) = (weak_overlay.upgrade(), weak_intro.upgrade()) {
-            overlay.remove_overlay(&intro);
-        }
-    });
-    intro.add_controller(click);
+    let click_close = close.clone();
+    click.connect_pressed(move |_, _, _, _| click_close());
+    window.add_controller(click);
     let keys = gtk::EventControllerKey::new();
-    keys.set_propagation_phase(gtk::PropagationPhase::Capture);
-    let weak_overlay = overlay.downgrade();
-    let weak_intro = intro.downgrade();
     keys.connect_key_pressed(move |_, key, _, _| {
-        if key == gtk::gdk::Key::Escape
-            && let (Some(overlay), Some(intro)) = (weak_overlay.upgrade(), weak_intro.upgrade())
-        {
-            overlay.remove_overlay(&intro);
+        if key == gtk::gdk::Key::Escape {
+            close();
             return glib::Propagation::Stop;
         }
         glib::Propagation::Proceed
     });
-    overlay.add_controller(keys);
+    window.add_controller(keys);
+    window.present();
+}
+
+/// Deep-space backdrop: void fill, coral and ice nebula washes, and a
+/// deterministic starfield that twinkles slowly with the frame clock.
+fn draw_starfield(
+    cr: &gtk::cairo::Context,
+    width: f64,
+    height: f64,
+    clock: Option<gtk::gdk::FrameClock>,
+) {
+    let t = clock.map_or(0.0, |c| c.frame_time() as f64 / 1_000_000.0);
+    cr.set_source_rgb(0.024, 0.039, 0.078); // #060A14
+    let _ = cr.paint();
+    for (cx, cy, radius, (r, g, b), alpha) in [
+        (width * 0.82, height * 0.18, width.max(height) * 0.55, (0.62, 0.84, 1.0), 0.09),
+        (width * 0.12, height * 0.95, width.max(height) * 0.5, (1.0, 0.48, 0.40), 0.07),
+        (width * 0.55, height * 0.6, width.max(height) * 0.35, (0.45, 0.35, 0.85), 0.05),
+    ] {
+        let wash = gtk::cairo::RadialGradient::new(cx, cy, 0.0, cx, cy, radius);
+        wash.add_color_stop_rgba(0.0, r, g, b, alpha);
+        wash.add_color_stop_rgba(1.0, r, g, b, 0.0);
+        if cr.set_source(&wash).is_ok() {
+            let _ = cr.paint();
+        }
+    }
+    // Simple LCG so the sky is identical every frame and every launch.
+    let mut seed: u32 = 0x5eed_1a5;
+    let mut next = move || {
+        seed = seed.wrapping_mul(1_664_525).wrapping_add(1_013_904_223);
+        f64::from(seed >> 8) / f64::from(1u32 << 24)
+    };
+    let count = ((width * height) / 5200.0).clamp(80.0, 520.0) as usize;
+    for _ in 0..count {
+        let (x, y) = (next() * width, next() * height);
+        let size = 0.35 + next().powi(3) * 1.4;
+        let phase = next() * std::f64::consts::TAU;
+        let speed = 0.4 + next() * 1.2;
+        let ice = next() > 0.82;
+        let twinkle = 0.55 + 0.45 * (t * speed + phase).sin();
+        let alpha = (0.25 + size * 0.4).min(0.95) * twinkle;
+        if ice {
+            cr.set_source_rgba(0.62, 0.84, 1.0, alpha);
+        } else {
+            cr.set_source_rgba(0.91, 0.93, 0.97, alpha);
+        }
+        cr.arc(x, y, size, 0.0, std::f64::consts::TAU);
+        let _ = cr.fill();
+    }
+}
+
+/// The original soft blue halo behind the logo (non-Stellar themes).
+fn draw_glow(cr: &gtk::cairo::Context, width: f64, height: f64) {
+    let x = width - 235.0;
+    let y = height * 0.52;
+    let glow = gtk::cairo::RadialGradient::new(x, y, 0.0, x, y, 330.0);
+    let dark = adw::StyleManager::default().is_dark();
+    let (red, green, blue, strength) = if dark {
+        (0.39, 0.60, 0.84, 0.12)
+    } else {
+        (0.09, 0.58, 0.82, 0.24)
+    };
+    glow.add_color_stop_rgba(0.0, red, green, blue, strength);
+    glow.add_color_stop_rgba(0.45, red, green, blue, strength * 0.45);
+    glow.add_color_stop_rgba(1.0, 0.09, 0.58, 0.82, 0.0);
+    if cr.set_source(&glow).is_ok() {
+        let _ = cr.paint();
+    }
+}
+
+/// Live system orbits around the home-page Arch logo. Each moon is a real
+/// reading: CPU (coral, orbit speed = load), memory (ice, moon size = used
+/// share) and network (mint, speed = throughput). The logo brightens with CPU.
+struct LiveOrbits {
+    sampler: crate::live_stats::Sampler,
+    sampled_at: Instant,
+    last_frame: Instant,
+    started: Instant,
+    /// Smoothed display values so moons ease between one-second samples.
+    cpu: f64,
+    mem: f64,
+    net: f64,
+    angles: [f64; 3],
+    labels: [String; 3],
+}
+
+impl LiveOrbits {
+    // (radius, flatten, tilt) per orbit: CPU, memory, network.
+    const ORBITS: [(f64, f64, f64); 3] = [(150.0, 0.34, -0.35), (195.0, 0.28, 0.40), (240.0, 0.22, -0.10)];
+    const COLOURS: [(f64, f64, f64); 3] = [(1.0, 0.478, 0.4), (0.62, 0.84, 1.0), (0.5, 0.88, 0.71)];
+
+    fn new() -> Self {
+        let now = Instant::now();
+        let mut orbits = Self {
+            sampler: crate::live_stats::Sampler::new(),
+            sampled_at: now,
+            last_frame: now,
+            started: now,
+            cpu: 0.0,
+            mem: 0.0,
+            net: 0.0,
+            angles: [0.0, 2.1, 4.2],
+            labels: Default::default(),
+        };
+        orbits.relabel();
+        orbits
+    }
+
+    fn relabel(&mut self) {
+        let r = self.sampler.latest;
+        self.labels = [
+            format!("CPU {:.0}%", r.cpu * 100.0),
+            format!(
+                "RAM {:.1} / {:.0} GB",
+                r.mem_used_kib as f64 / 1_048_576.0,
+                r.mem_total_kib as f64 / 1_048_576.0
+            ),
+            format!("NET {}", crate::live_stats::format_rate(r.net_bytes_per_sec)),
+        ];
+    }
+
+    /// Advance one frame; returns the logo opacity for this frame.
+    fn advance(&mut self, animate: bool) -> f64 {
+        let now = Instant::now();
+        if now.duration_since(self.sampled_at) >= Duration::from_secs(1) {
+            self.sampler.sample();
+            self.sampled_at = now;
+            self.relabel();
+        }
+        let dt = now.duration_since(self.last_frame).as_secs_f64().min(0.1);
+        self.last_frame = now;
+        let r = self.sampler.latest;
+        // Network: 0 at idle, ~1 around 10 MB/s (log scale).
+        let net_target = ((r.net_bytes_per_sec + 1.0).log10() / 7.0).clamp(0.0, 1.0);
+        let ease = 1.0 - (-dt * 3.0).exp();
+        self.cpu += (r.cpu - self.cpu) * ease;
+        self.mem += (r.mem_fraction() - self.mem) * ease;
+        self.net += (net_target - self.net) * ease;
+        if animate {
+            let speeds = [0.25 + 3.2 * self.cpu, -0.45, 0.2 + 2.4 * self.net];
+            for (angle, speed) in self.angles.iter_mut().zip(speeds) {
+                *angle = (*angle + speed * dt) % std::f64::consts::TAU;
+            }
+        }
+        let breathe = if animate {
+            (now.duration_since(self.started).as_secs_f64() * (1.2 + 3.0 * self.cpu)).sin()
+        } else {
+            0.0
+        };
+        0.10 + 0.10 * self.cpu + 0.02 * breathe
+    }
+
+    /// Draw the far (`front == false`) or near half of every orbit.
+    /// Size of the orbit canvas; its right edge sits on the window edge and
+    /// the logo centre is 235 px in from there, vertically centred.
+    const BOX: (i32, i32) = (520, 380);
+
+    fn draw(&self, cr: &gtk::cairo::Context, width: f64, height: f64, front: bool) {
+        let (x, y) = (width - 235.0, height * 0.5);
+        let sizes = [5.5, 3.0 + 7.0 * self.mem, 4.0 + 2.0 * self.net];
+        for (i, &(radius, flatten, tilt)) in Self::ORBITS.iter().enumerate() {
+            let (r, g, b) = Self::COLOURS[i];
+            let angle = self.angles[i];
+            if cr.save().is_err() {
+                continue;
+            }
+            cr.translate(x, y);
+            cr.rotate(tilt);
+            if !front {
+                if cr.save().is_ok() {
+                    cr.scale(1.0, flatten);
+                    cr.arc(0.0, 0.0, radius, 0.0, std::f64::consts::TAU);
+                    let _ = cr.restore();
+                }
+                cr.set_line_width(1.0);
+                cr.set_source_rgba(r, g, b, 0.16);
+                let _ = cr.stroke();
+            }
+            if (angle.sin() > 0.0) == front {
+                let (mx, my) = (radius * angle.cos(), radius * flatten * angle.sin());
+                let dot = sizes[i] * (0.8 + 0.2 * angle.sin());
+                let halo = gtk::cairo::RadialGradient::new(mx, my, 0.0, mx, my, dot * 3.4);
+                halo.add_color_stop_rgba(0.0, r, g, b, 0.45);
+                halo.add_color_stop_rgba(1.0, r, g, b, 0.0);
+                if cr.set_source(&halo).is_ok() {
+                    cr.arc(mx, my, dot * 3.4, 0.0, std::f64::consts::TAU);
+                    let _ = cr.fill();
+                }
+                cr.set_source_rgba(r, g, b, 0.95);
+                cr.arc(mx, my, dot, 0.0, std::f64::consts::TAU);
+                let _ = cr.fill();
+            }
+            let _ = cr.restore();
+        }
+        if front {
+            // Fixed legend under the logo: one row per moon, never colliding.
+            cr.select_font_face("Sans", gtk::cairo::FontSlant::Normal, gtk::cairo::FontWeight::Bold);
+            cr.set_font_size(11.5);
+            for (i, label) in self.labels.iter().enumerate() {
+                let (r, g, b) = Self::COLOURS[i];
+                let row = y + 128.0 + 19.0 * i as f64;
+                cr.set_source_rgba(r, g, b, 0.95);
+                cr.arc(x - 58.0, row - 4.0, 4.0, 0.0, std::f64::consts::TAU);
+                let _ = cr.fill();
+                cr.set_source_rgba(r, g, b, 0.85);
+                cr.move_to(x - 46.0, row);
+                let _ = cr.show_text(label);
+            }
+        }
+    }
 }
 
 pub fn background(content: &gtk::Box) -> gtk::Overlay {
@@ -193,31 +431,53 @@ pub fn background(content: &gtk::Box) -> gtk::Overlay {
         .vexpand(true)
         .can_target(false)
         .build();
-    glow.set_draw_func(|_, cr, width, height| {
-        let x = width as f64 - 235.0;
-        let y = height as f64 * 0.52;
-        let glow = gtk::cairo::RadialGradient::new(x, y, 0.0, x, y, 330.0);
-        let dark = adw::StyleManager::default().is_dark();
-        let (red, green, blue, strength) = if dark {
-            (0.39, 0.60, 0.84, 0.12)
-        } else {
-            (0.09, 0.58, 0.82, 0.24)
-        };
-        glow.add_color_stop_rgba(0.0, red, green, blue, strength);
-        glow.add_color_stop_rgba(0.45, red, green, blue, strength * 0.45);
-        glow.add_color_stop_rgba(1.0, 0.09, 0.58, 0.82, 0.0);
-        if cr.set_source(&glow).is_ok() {
-            let _ = cr.paint();
-        }
-    });
-    let weak = glow.downgrade();
-    adw::StyleManager::default().connect_dark_notify(move |_| {
-        if let Some(glow) = weak.upgrade() {
-            glow.queue_draw();
-        }
-    });
     overlay.set_child(Some(&glow));
+    let live = Rc::new(std::cell::RefCell::new(LiveOrbits::new()));
+    let behind = live.clone();
+    let sky: Rc<std::cell::RefCell<Option<((i32, i32), gtk::cairo::ImageSurface)>>> =
+        Rc::default();
+    glow.set_draw_func(move |area, cr, width, height| {
+        let (w, h) = (f64::from(width), f64::from(height));
+        if area.root().is_some_and(|root| root.has_css_class("stellar")) {
+            // Rendered once per window size, then just blitted.
+            let mut cache = sky.borrow_mut();
+            if cache.as_ref().is_none_or(|(size, _)| *size != (width, height))
+                && let Ok(surface) =
+                    gtk::cairo::ImageSurface::create(gtk::cairo::Format::Rgb24, width, height)
+                && let Ok(sky_cr) = gtk::cairo::Context::new(&surface)
+            {
+                draw_starfield(&sky_cr, w, h, None);
+                drop(sky_cr);
+                *cache = Some(((width, height), surface));
+            }
+            if let Some((_, surface)) = cache.as_ref()
+                && cr.set_source_surface(surface, 0.0, 0.0).is_ok()
+            {
+                let _ = cr.paint();
+            } else {
+                draw_starfield(cr, w, h, None);
+            }
+        } else {
+            draw_glow(cr, w, h);
+        }
+    });
+    let orbit_area = |live: Rc<std::cell::RefCell<LiveOrbits>>, front: bool| {
+        let area = gtk::DrawingArea::builder()
+            .halign(gtk::Align::End)
+            .valign(gtk::Align::Center)
+            .content_width(LiveOrbits::BOX.0)
+            .content_height(LiveOrbits::BOX.1)
+            .can_target(false)
+            .build();
+        area.set_draw_func(move |_, cr, width, height| {
+            live.borrow().draw(cr, f64::from(width), f64::from(height), front);
+        });
+        area
+    };
+    let behind = orbit_area(behind, false);
+    overlay.add_overlay(&behind);
     // Keep the system's actual Arch vector logo crisp at every display scale.
+    let mut logo_picture = None;
     if let Ok(loader) = gtk::gdk_pixbuf::PixbufLoader::with_type("svg")
         && loader.write(LOGO).is_ok()
         && loader.close().is_ok()
@@ -233,7 +493,54 @@ pub fn background(content: &gtk::Box) -> gtk::Overlay {
         logo.set_opacity(0.12);
         logo.set_can_target(false);
         overlay.add_overlay(&logo);
+        logo_picture = Some(logo);
     }
+    // Near halves of the orbits pass in front of the logo (still behind content).
+    let front = orbit_area(live.clone(), true);
+    overlay.add_overlay(&front);
+    // ~20 fps animation; /proc is sampled once a second inside `advance`.
+    let weak_glow = glow.downgrade();
+    let weak_behind = behind.downgrade();
+    let weak_front = front.downgrade();
+    let mut last_look = (false, false);
+    let mut idle_ticks = 0_u32;
+    let weak_logo = logo_picture.map(|logo| logo.downgrade());
+    glib::timeout_add_local(Duration::from_millis(50), move || {
+        let (Some(glow), Some(behind), Some(front)) =
+            (weak_glow.upgrade(), weak_behind.upgrade(), weak_front.upgrade())
+        else {
+            return glib::ControlFlow::Break;
+        };
+        if !glow.is_mapped() {
+            return glib::ControlFlow::Continue;
+        }
+        // Smooth only while the window is focused; otherwise refresh the
+        // readings about once a second so background use stays near zero.
+        let active = glow
+            .root()
+            .and_then(|root| root.downcast::<gtk::Window>().ok())
+            .is_some_and(|window| window.is_active());
+        idle_ticks = if active { 0 } else { idle_ticks + 1 };
+        if !active && idle_ticks % 20 != 1 {
+            return glib::ControlFlow::Continue;
+        }
+        let animate = active
+            && gtk::Settings::default().is_none_or(|s| s.is_gtk_enable_animations());
+        let pulse = live.borrow_mut().advance(animate);
+        if let Some(logo) = weak_logo.as_ref().and_then(|logo| logo.upgrade()) {
+            logo.set_opacity(pulse);
+        }
+        behind.queue_draw();
+        front.queue_draw();
+        // The full-window background only redraws when the look changes.
+        let stellar = glow.root().is_some_and(|r| r.has_css_class("stellar"));
+        let look = (stellar, adw::StyleManager::default().is_dark());
+        if look != last_look {
+            glow.queue_draw();
+        }
+        last_look = look;
+        glib::ControlFlow::Continue
+    });
     content.set_hexpand(true);
     content.set_vexpand(true);
     overlay.add_overlay(content);
