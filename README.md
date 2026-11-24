@@ -63,43 +63,151 @@ Installed software, with animated percentage circles by source:
 
 ## Install
 
-### Binary release
+A step-by-step guide for a fresh Arch Linux desktop. Run the commands as your normal user (not root); `sudo` asks for your password when needed.
 
-Download the `x86_64` archive and its SHA-256 file from [GitHub Releases](https://github.com/danny19862025/ArchEasy/releases). Built on Arch Linux for Arch Linux; GTK4 4.10+ and Libadwaita 1.2+ are required and are not bundled.
+### Step 1 — Check the requirements
 
-```sh
-sha256sum -c archeasy-0.1.2-x86_64-linux.tar.gz.sha256
-tar -xzf archeasy-0.1.2-x86_64-linux.tar.gz
-cd archeasy-0.1.2-x86_64-linux
-install -Dm755 archeasy "$HOME/.local/bin/archeasy"
-bash scripts/install-desktop.sh
-```
+- Arch Linux (or an Arch-based distribution) with a graphical desktop
+- GTK4 4.10+ and Libadwaita 1.2+
+- A supported terminal for package operations: Ghostty, foot, Alacritty, WezTerm, Konsole, Kitty, GNOME Terminal, Xfce Terminal or xterm
+- `sudo` access and working Pacman mirrors
 
-Ensure `~/.local/bin` is on your desktop session's `PATH`.
-
-### Build and install with Cargo
+### Step 2 — Update your system and install the dependencies
 
 ```sh
-git clone https://github.com/danny19862025/ArchEasy.git
-cd ArchEasy
-cargo install --path . --locked
-bash scripts/install-desktop.sh
+sudo pacman -Syu --needed gtk4 libadwaita curl python polkit sudo git base-devel
 ```
 
-Cargo installs the executable only. The helper installs the launcher and icon under `$XDG_DATA_HOME` (default `~/.local/share`). Ensure `~/.cargo/bin` is on your desktop session's `PATH`.
+`git` and `base-devel` are needed for options A and C below. Rust is installed automatically by option A; option C needs it too (`sudo pacman -S --needed rust`).
 
-### Arch package / AUR recipe
+### Step 3 — Choose one way to install
 
-The VCS recipe is [scripts/PKGBUILD](scripts/PKGBUILD). Build it as your normal user in a separate folder:
+| Option | Best for | Gets the latest features |
+| --- | --- | --- |
+| **A. Arch package (recommended)** | Most users — installs through Pacman, easy to update and remove | Yes |
+| **B. Binary release** | Quick install without compiling | Latest tagged release only |
+| **C. Build with Cargo** | Developers | Yes |
+
+#### Option A — Build and install the Arch package (recommended)
+
+1. Download the source:
+
+   ```sh
+   git clone https://github.com/danny19862025/ArchEasy.git
+   ```
+
+2. Copy the recipe into its own build folder:
+
+   ```sh
+   mkdir -p ~/archeasy-package
+   cp ArchEasy/scripts/PKGBUILD ~/archeasy-package/
+   cd ~/archeasy-package
+   ```
+
+3. Build and install it. Pacman asks for confirmation and installs any missing dependencies:
+
+   ```sh
+   makepkg -si
+   ```
+
+   The build runs ArchEasy's test suite, which pulls in a few extra test tools (`fish`, `lua`, `rclone`, …). To skip the tests, use `makepkg -si --nocheck`.
+
+This installs the `archeasy` command, the app-menu launcher, the icon and the licenses. The recipe is [scripts/PKGBUILD](scripts/PKGBUILD). `paru -S archeasy-git` will work once a maintainer submits this recipe to the AUR; it is not on the AUR yet.
+
+#### Option B — Install the prebuilt binary release
+
+1. Download the `x86_64` archive and its checksum from [GitHub Releases](https://github.com/danny19862025/ArchEasy/releases/latest):
+
+   ```sh
+   cd ~/Downloads
+   curl -LO https://github.com/danny19862025/ArchEasy/releases/download/v0.1.2/archeasy-0.1.2-x86_64-linux.tar.gz
+   curl -LO https://github.com/danny19862025/ArchEasy/releases/download/v0.1.2/archeasy-0.1.2-x86_64-linux.tar.gz.sha256
+   ```
+
+2. Verify the download — it must print `OK`:
+
+   ```sh
+   sha256sum -c archeasy-0.1.2-x86_64-linux.tar.gz.sha256
+   ```
+
+3. Extract it and install the program and launcher:
+
+   ```sh
+   tar -xzf archeasy-0.1.2-x86_64-linux.tar.gz
+   cd archeasy-0.1.2-x86_64-linux
+   install -Dm755 archeasy "$HOME/.local/bin/archeasy"
+   bash scripts/install-desktop.sh
+   ```
+
+4. Make sure `~/.local/bin` is on your `PATH` (see [PATH setup](#path-setup) below).
+
+The release binary is built on Arch Linux for Arch Linux; GTK4 and Libadwaita are not bundled. It contains the features of the latest tagged release — newer additions on `main`, such as the Stellar theme, need option A or C.
+
+#### Option C — Build from source with Cargo
+
+1. Install Rust if you have not already:
+
+   ```sh
+   sudo pacman -S --needed rust
+   ```
+
+2. Download, build and install:
+
+   ```sh
+   git clone https://github.com/danny19862025/ArchEasy.git
+   cd ArchEasy
+   cargo install --path . --locked
+   bash scripts/install-desktop.sh
+   ```
+
+3. Make sure `~/.cargo/bin` is on your `PATH` (see below).
+
+Cargo installs only the program; `install-desktop.sh` adds the launcher and icon under `$XDG_DATA_HOME` (default `~/.local/share`).
+
+#### PATH setup
+
+Options B and C install into your home folder. If running `archeasy` says “command not found”, add the folder to your `PATH`, then log out and back in:
 
 ```sh
-mkdir -p /tmp/archeasy-package
-cp scripts/PKGBUILD /tmp/archeasy-package/
-cd /tmp/archeasy-package
-makepkg -si
+# Fish
+fish_add_path ~/.local/bin ~/.cargo/bin
+
+# Bash
+echo 'export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$PATH"' >> ~/.bashrc
 ```
 
-This installs the binary, desktop launcher, icon and licenses. `paru -S archeasy-git` will work once a maintainer submits this recipe to the AUR; adding a PKGBUILD to GitHub does not register an AUR package.
+### Step 4 — Launch ArchEasy
+
+Open **ArchEasy** from your app menu, or run:
+
+```sh
+archeasy
+```
+
+### Step 5 — Run first-time setup
+
+Click **Setup ArchEasy** in the top bar. It upgrades your system, installs Flatpak, build tools and Python, builds `paru` for AUR support (you review its PKGBUILD first), and adds Flathub for your account. After that you can search Pacman, AUR, Flatpak and GitHub together.
+
+### Updating
+
+- **Option A:** go back to `~/archeasy-package` and run `makepkg -si` again — it fetches and builds the newest code.
+- **Option B:** repeat the option B steps with the newer release.
+- **Option C:** in the `ArchEasy` folder run `git pull && cargo install --path . --locked --force`.
+
+**About → Check for updates** inside the app shows whether a newer release exists.
+
+### Uninstalling
+
+```sh
+# Option A
+sudo pacman -R archeasy-git
+
+# Options B and C
+rm -f ~/.local/bin/archeasy ~/.cargo/bin/archeasy
+rm -f ~/.local/share/applications/archeasy.desktop ~/.local/share/icons/hicolor/scalable/apps/archeasy.svg
+```
+
+Your settings are kept in `~/.config/archeasy`; delete that folder too for a completely clean removal.
 
 ## Guides
 

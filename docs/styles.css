@@ -1333,6 +1333,114 @@ code {
   color: var(--text-muted);
 }
 
+/* Step-by-step install guide */
+.step-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 16px;
+  margin-bottom: 16px;
+}
+.step-card {
+  border-radius: var(--radius-xl);
+  background: var(--bg-card);
+  border: 1px solid var(--border-strong);
+  box-shadow: var(--shadow-md);
+  backdrop-filter: blur(14px);
+  padding: 18px 20px;
+  min-width: 0;
+}
+.step-card-wide {
+  margin-bottom: 16px;
+}
+.step-card-wide .install-box {
+  box-shadow: none;
+  background: transparent;
+}
+.step-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.step-head h3 {
+  margin: 0;
+  font-size: 1.02rem;
+}
+.step-num {
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: #061019;
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  box-shadow: 0 0 0 4px rgba(var(--accent-rgb), 0.16);
+}
+.step-checklist {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 0.86rem;
+  color: var(--text-muted);
+  line-height: 1.65;
+}
+.step-text {
+  margin: 10px 0 0;
+  font-size: 0.84rem;
+  color: var(--text-muted);
+  line-height: 1.6;
+}
+.step-card .step-text:first-of-type:not(:last-child) {
+  margin: 0 0 10px;
+}
+.step-list {
+  list-style: none;
+  counter-reset: substep;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 14px;
+}
+.step-list > li {
+  counter-increment: substep;
+  position: relative;
+  padding-left: 36px;
+}
+.step-list > li::before {
+  content: counter(substep);
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: var(--accent);
+  border: 1px solid rgba(var(--accent-rgb), 0.45);
+  background: rgba(var(--accent-rgb), 0.08);
+}
+.step-list > li > p:first-child {
+  margin: 2px 0 8px;
+  font-size: 0.88rem;
+  color: var(--text);
+}
+.tab-badge {
+  margin-left: 6px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--accent-2);
+  background: rgba(var(--accent-2-rgb), 0.14);
+  border: 1px solid rgba(var(--accent-2-rgb), 0.35);
+}
+
 .req-docs-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -1680,6 +1788,9 @@ code {
    ========================================================================== */
 
 @media (max-width: 960px) {
+  .step-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
   .topbar {
     grid-template-columns: auto 1fr;
   }
@@ -1710,6 +1821,15 @@ code {
 }
 
 @media (max-width: 680px) {
+  .step-card {
+    padding: 16px 14px;
+  }
+  .step-card-wide .install-body {
+    padding: 16px 12px;
+  }
+  .step-list > li {
+    padding-left: 32px;
+  }
   .slide {
     padding: 72px 16px 86px;
     align-items: flex-start;

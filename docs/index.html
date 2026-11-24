@@ -521,120 +521,211 @@ cd archeasy-0.1.2-x86_64-linux &amp;&amp; install -Dm755 archeasy "$HOME/.local/
       <div class="slide-inner">
         <div class="slide-header reveal-item" style="--d: 0ms">
           <span class="eyebrow">07 &middot; Download &amp; Installation</span>
-          <h2>Install ArchEasy on Arch Linux</h2>
+          <h2>Install ArchEasy, step by step</h2>
           <p>
-            Download the prebuilt <code>x86_64</code> binary release, compile with Cargo, or build a native package with <code>PKGBUILD</code>.
+            Five steps from a fresh Arch Linux desktop to your first search. Run every command as your normal user &mdash; <code>sudo</code> asks for your password when needed.
           </p>
         </div>
 
-        <div class="install-box reveal-item" style="--d: 90ms">
-          <div class="install-tabs" role="tablist" aria-label="Installation methods">
-            <button class="install-tab active" type="button" role="tab" aria-selected="true" data-install-tab="binary">
-              Binary Release (v0.1.2)
-            </button>
-            <button class="install-tab" type="button" role="tab" aria-selected="false" data-install-tab="cargo">
-              Build with Cargo
-            </button>
-            <button class="install-tab" type="button" role="tab" aria-selected="false" data-install-tab="pkgbuild">
-              Arch PKGBUILD
-            </button>
-            <button class="install-tab" type="button" role="tab" aria-selected="false" data-install-tab="docs">
-              Requirements &amp; Guides
-            </button>
+        <div class="step-grid reveal-item" style="--d: 60ms">
+          <div class="step-card">
+            <div class="step-head"><span class="step-num">1</span><h3>Check the requirements</h3></div>
+            <ul class="step-checklist">
+              <li>Arch Linux (or Arch-based) with a graphical desktop</li>
+              <li><strong>GTK4 4.10+</strong> &amp; <strong>Libadwaita 1.2+</strong></li>
+              <li>A supported terminal: Ghostty, foot, Alacritty, WezTerm, Konsole, Kitty, GNOME Terminal, Xfce Terminal or xterm</li>
+              <li><code>sudo</code> access and working Pacman mirrors</li>
+            </ul>
           </div>
+          <div class="step-card">
+            <div class="step-head"><span class="step-num">2</span><h3>Update &amp; install dependencies</h3></div>
+            <div class="code-block">
+              <button class="copy-btn" type="button">Copy</button>
+              <pre>sudo pacman -Syu --needed gtk4 libadwaita curl python polkit sudo git base-devel</pre>
+            </div>
+            <p class="step-text"><code>git</code> and <code>base-devel</code> are needed to build from source (options A and C).</p>
+          </div>
+        </div>
 
-          <div class="install-body">
-            <!-- Binary Release -->
-            <div class="install-panel active" data-install-panel="binary" role="tabpanel">
-              <p class="install-note">
-                Download <code>archeasy-0.1.2-x86_64-linux.tar.gz</code> and its <code>.sha256</code> file from
-                <a href="https://github.com/danny19862025/ArchEasy/releases/latest" target="_blank" rel="noopener noreferrer">GitHub Releases</a>,
-                then verify and install:
-              </p>
-              <div class="code-block">
-                <button class="copy-btn" type="button">Copy</button>
-                <pre>sha256sum -c archeasy-0.1.2-x86_64-linux.tar.gz.sha256
-tar -xzf archeasy-0.1.2-x86_64-linux.tar.gz
+        <div class="step-card step-card-wide reveal-item" style="--d: 120ms">
+          <div class="step-head"><span class="step-num">3</span><h3>Choose one way to install</h3></div>
+
+          <div class="install-box">
+            <div class="install-tabs" role="tablist" aria-label="Installation methods">
+              <button class="install-tab active" type="button" role="tab" aria-selected="true" data-install-tab="pkgbuild">
+                A &middot; Arch package <span class="tab-badge">Recommended</span>
+              </button>
+              <button class="install-tab" type="button" role="tab" aria-selected="false" data-install-tab="binary">
+                B &middot; Binary release (v0.1.2)
+              </button>
+              <button class="install-tab" type="button" role="tab" aria-selected="false" data-install-tab="cargo">
+                C &middot; Build with Cargo
+              </button>
+              <button class="install-tab" type="button" role="tab" aria-selected="false" data-install-tab="manage">
+                Update &amp; uninstall
+              </button>
+              <button class="install-tab" type="button" role="tab" aria-selected="false" data-install-tab="docs">
+                Requirements &amp; Guides
+              </button>
+            </div>
+
+            <div class="install-body">
+              <!-- A: PKGBUILD -->
+              <div class="install-panel active" data-install-panel="pkgbuild" role="tabpanel">
+                <p class="install-note">Installs through Pacman, so it is easy to update and remove. Always builds the newest code.</p>
+                <ol class="step-list">
+                  <li>
+                    <p>Download the source:</p>
+                    <div class="code-block"><button class="copy-btn" type="button">Copy</button><pre>git clone https://github.com/danny19862025/ArchEasy.git</pre></div>
+                  </li>
+                  <li>
+                    <p>Copy the recipe into its own build folder:</p>
+                    <div class="code-block"><button class="copy-btn" type="button">Copy</button><pre>mkdir -p ~/archeasy-package
+cp ArchEasy/scripts/PKGBUILD ~/archeasy-package/
+cd ~/archeasy-package</pre></div>
+                  </li>
+                  <li>
+                    <p>Build and install &mdash; Pacman asks for confirmation and installs missing dependencies:</p>
+                    <div class="code-block"><button class="copy-btn" type="button">Copy</button><pre>makepkg -si</pre></div>
+                    <p class="step-text">The build runs the test suite, which pulls in a few extra test tools. To skip it, use <code>makepkg -si --nocheck</code>.</p>
+                  </li>
+                </ol>
+                <div class="install-foot">
+                  <span>Installs the binary, app-menu launcher, icon and licenses. Not on the AUR yet.</span>
+                  <a href="https://github.com/danny19862025/ArchEasy/blob/main/scripts/PKGBUILD" target="_blank" rel="noopener noreferrer">View scripts/PKGBUILD &rarr;</a>
+                </div>
+              </div>
+
+              <!-- B: Binary release -->
+              <div class="install-panel" data-install-panel="binary" role="tabpanel">
+                <p class="install-note">Quickest install, no compiling. Contains the features of the latest tagged release &mdash; newer additions such as the Stellar theme need option A or C.</p>
+                <ol class="step-list">
+                  <li>
+                    <p>Download the archive and its checksum:</p>
+                    <div class="code-block"><button class="copy-btn" type="button">Copy</button><pre>cd ~/Downloads
+curl -LO https://github.com/danny19862025/ArchEasy/releases/download/v0.1.2/archeasy-0.1.2-x86_64-linux.tar.gz
+curl -LO https://github.com/danny19862025/ArchEasy/releases/download/v0.1.2/archeasy-0.1.2-x86_64-linux.tar.gz.sha256</pre></div>
+                  </li>
+                  <li>
+                    <p>Verify the download &mdash; it must print <code>OK</code>:</p>
+                    <div class="code-block"><button class="copy-btn" type="button">Copy</button><pre>sha256sum -c archeasy-0.1.2-x86_64-linux.tar.gz.sha256</pre></div>
+                  </li>
+                  <li>
+                    <p>Extract it and install the program and launcher:</p>
+                    <div class="code-block"><button class="copy-btn" type="button">Copy</button><pre>tar -xzf archeasy-0.1.2-x86_64-linux.tar.gz
 cd archeasy-0.1.2-x86_64-linux
 install -Dm755 archeasy "$HOME/.local/bin/archeasy"
-bash scripts/install-desktop.sh</pre>
+bash scripts/install-desktop.sh</pre></div>
+                  </li>
+                  <li>
+                    <p>If <code>archeasy</code> says &ldquo;command not found&rdquo;, add <code>~/.local/bin</code> to your <code>PATH</code>, then log out and back in:</p>
+                    <div class="code-block"><button class="copy-btn" type="button">Copy</button><pre>fish_add_path ~/.local/bin                                      # Fish
+echo 'export PATH="$HOME/.local/bin:$PATH"' &gt;&gt; ~/.bashrc       # Bash</pre></div>
+                  </li>
+                </ol>
+                <div class="install-foot">
+                  <span>Built on Arch for Arch &middot; GTK4 and Libadwaita are not bundled.</span>
+                  <a class="btn btn-primary btn-sm" href="https://github.com/danny19862025/ArchEasy/releases/latest" target="_blank" rel="noopener noreferrer">GitHub Releases &rarr;</a>
+                </div>
               </div>
-              <div class="install-foot">
-                <span>Ensure <code>~/.local/bin</code> is on your desktop session’s <code>PATH</code>.</span>
-                <a class="btn btn-primary btn-sm" href="https://github.com/danny19862025/ArchEasy/releases/latest" target="_blank" rel="noopener noreferrer">
-                  Download v0.1.2 Tarball &rarr;
-                </a>
-              </div>
-            </div>
 
-            <!-- Cargo -->
-            <div class="install-panel" data-install-panel="cargo" role="tabpanel">
-              <p class="install-note">
-                Compile the release binary from source using Rust &amp; Cargo, then install the desktop launcher and icon:
-              </p>
-              <div class="code-block">
-                <button class="copy-btn" type="button">Copy</button>
-                <pre>git clone https://github.com/danny19862025/ArchEasy.git
+              <!-- C: Cargo -->
+              <div class="install-panel" data-install-panel="cargo" role="tabpanel">
+                <p class="install-note">For developers. Builds the newest code with Rust &amp; Cargo.</p>
+                <ol class="step-list">
+                  <li>
+                    <p>Install Rust:</p>
+                    <div class="code-block"><button class="copy-btn" type="button">Copy</button><pre>sudo pacman -S --needed rust</pre></div>
+                  </li>
+                  <li>
+                    <p>Download, build and install the program and launcher:</p>
+                    <div class="code-block"><button class="copy-btn" type="button">Copy</button><pre>git clone https://github.com/danny19862025/ArchEasy.git
 cd ArchEasy
 cargo install --path . --locked
-bash scripts/install-desktop.sh</pre>
-              </div>
-              <div class="install-foot">
-                <span>Ensure <code>~/.cargo/bin</code> is on your desktop session’s <code>PATH</code>.</span>
-                <a href="https://github.com/danny19862025/ArchEasy/blob/main/docs/development.md" target="_blank" rel="noopener noreferrer">
-                  Development &amp; Build Guide &rarr;
-                </a>
-              </div>
-            </div>
-
-            <!-- PKGBUILD -->
-            <div class="install-panel" data-install-panel="pkgbuild" role="tabpanel">
-              <p class="install-note">
-                Build a native Arch package with the included VCS recipe (<code>scripts/PKGBUILD</code>) as your normal user:
-              </p>
-              <div class="code-block">
-                <button class="copy-btn" type="button">Copy</button>
-                <pre>git clone https://github.com/danny19862025/ArchEasy.git
-mkdir -p /tmp/archeasy-package
-cp ArchEasy/scripts/PKGBUILD /tmp/archeasy-package/
-cd /tmp/archeasy-package
-makepkg -si</pre>
-              </div>
-              <div class="install-foot">
-                <span>Installs the binary, desktop launcher, icon, and license files via Pacman.</span>
-                <a href="https://github.com/danny19862025/ArchEasy/blob/main/scripts/PKGBUILD" target="_blank" rel="noopener noreferrer">
-                  View scripts/PKGBUILD &rarr;
-                </a>
-              </div>
-            </div>
-
-            <!-- Requirements & Guides -->
-            <div class="install-panel" data-install-panel="docs" role="tabpanel">
-              <div class="req-docs-grid">
-                <div class="req-box">
-                  <h4>System Requirements</h4>
-                  <ul>
-                    <li><strong>Arch Linux desktop</strong> (x86_64 or aarch64 source build)</li>
-                    <li><strong>GTK4 4.10+</strong> &amp; <strong>Libadwaita 1.2+</strong></li>
-                    <li><code>pacman</code>, <code>curl</code>, <code>polkit</code> &amp; a supported terminal (Ghostty, foot, Alacritty, WezTerm, Konsole, Kitty, GNOME Terminal, Xfce Terminal, xterm)</li>
-                    <li>Run <strong>Setup ArchEasy</strong> inside the app to configure Flatpak, Flathub &amp; <code>paru</code></li>
-                  </ul>
+bash scripts/install-desktop.sh</pre></div>
+                  </li>
+                  <li>
+                    <p>If <code>archeasy</code> says &ldquo;command not found&rdquo;, add <code>~/.cargo/bin</code> to your <code>PATH</code>, then log out and back in:</p>
+                    <div class="code-block"><button class="copy-btn" type="button">Copy</button><pre>fish_add_path ~/.cargo/bin                                      # Fish
+echo 'export PATH="$HOME/.cargo/bin:$PATH"' &gt;&gt; ~/.bashrc       # Bash</pre></div>
+                  </li>
+                </ol>
+                <div class="install-foot">
+                  <span>The launcher and icon go under <code>~/.local/share</code>.</span>
+                  <a href="https://github.com/danny19862025/ArchEasy/blob/main/docs/development.md" target="_blank" rel="noopener noreferrer">Development &amp; Build Guide &rarr;</a>
                 </div>
-                <div class="docs-links-box">
-                  <h4>Documentation Guides</h4>
-                  <div class="mini-guides-grid">
-                    <a href="https://github.com/danny19862025/ArchEasy/blob/main/docs/workbench.md" target="_blank" rel="noopener noreferrer">Workbench &nearr;</a>
-                    <a href="https://github.com/danny19862025/ArchEasy/blob/main/docs/system-management.md" target="_blank" rel="noopener noreferrer">System Updates &nearr;</a>
-                    <a href="https://github.com/danny19862025/ArchEasy/blob/main/docs/gaming.md" target="_blank" rel="noopener noreferrer">Gaming Setup &nearr;</a>
-                    <a href="https://github.com/danny19862025/ArchEasy/blob/main/docs/developer-tools.md" target="_blank" rel="noopener noreferrer">Developer Tools &nearr;</a>
-                    <a href="https://github.com/danny19862025/ArchEasy/blob/main/docs/github-releases.md" target="_blank" rel="noopener noreferrer">GitHub Releases &nearr;</a>
-                    <a href="https://github.com/danny19862025/ArchEasy/blob/main/docs/configs.md" target="_blank" rel="noopener noreferrer">Configs &amp; Presets &nearr;</a>
-                    <a href="https://github.com/danny19862025/ArchEasy/blob/main/docs/backups.md" target="_blank" rel="noopener noreferrer">Backups &amp; Export &nearr;</a>
-                    <a href="https://github.com/danny19862025/ArchEasy/blob/main/docs/ask-ai.md" target="_blank" rel="noopener noreferrer">Ask AI &nearr;</a>
+              </div>
+
+              <!-- Update & uninstall -->
+              <div class="install-panel" data-install-panel="manage" role="tabpanel">
+                <div class="req-docs-grid">
+                  <div class="req-box">
+                    <h4>Updating</h4>
+                    <ul>
+                      <li><strong>A:</strong> in <code>~/archeasy-package</code> run <code>makepkg -si</code> again &mdash; it fetches the newest code.</li>
+                      <li><strong>B:</strong> repeat the option B steps with the newer release.</li>
+                      <li><strong>C:</strong> in the <code>ArchEasy</code> folder run <code>git pull &amp;&amp; cargo install --path . --locked --force</code>.</li>
+                      <li><strong>About &rarr; Check for updates</strong> in the app shows whether a newer release exists.</li>
+                    </ul>
+                  </div>
+                  <div class="req-box">
+                    <h4>Uninstalling</h4>
+                    <div class="code-block"><button class="copy-btn" type="button">Copy</button><pre># Option A
+sudo pacman -R archeasy-git
+
+# Options B and C
+rm -f ~/.local/bin/archeasy ~/.cargo/bin/archeasy
+rm -f ~/.local/share/applications/archeasy.desktop \
+      ~/.local/share/icons/hicolor/scalable/apps/archeasy.svg</pre></div>
+                    <p class="step-text">Settings live in <code>~/.config/archeasy</code> &mdash; delete it too for a clean removal.</p>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Requirements & Guides -->
+              <div class="install-panel" data-install-panel="docs" role="tabpanel">
+                <div class="req-docs-grid">
+                  <div class="req-box">
+                    <h4>System Requirements</h4>
+                    <ul>
+                      <li><strong>Arch Linux desktop</strong> (x86_64 or aarch64 source build)</li>
+                      <li><strong>GTK4 4.10+</strong> &amp; <strong>Libadwaita 1.2+</strong></li>
+                      <li><code>pacman</code>, <code>curl</code>, <code>polkit</code> &amp; a supported terminal (Ghostty, foot, Alacritty, WezTerm, Konsole, Kitty, GNOME Terminal, Xfce Terminal, xterm)</li>
+                      <li>Run <strong>Setup ArchEasy</strong> inside the app to configure Flatpak, Flathub &amp; <code>paru</code></li>
+                    </ul>
+                  </div>
+                  <div class="docs-links-box">
+                    <h4>Documentation Guides</h4>
+                    <div class="mini-guides-grid">
+                      <a href="https://github.com/danny19862025/ArchEasy/blob/main/docs/workbench.md" target="_blank" rel="noopener noreferrer">Workbench &nearr;</a>
+                      <a href="https://github.com/danny19862025/ArchEasy/blob/main/docs/system-management.md" target="_blank" rel="noopener noreferrer">System Updates &nearr;</a>
+                      <a href="https://github.com/danny19862025/ArchEasy/blob/main/docs/gaming.md" target="_blank" rel="noopener noreferrer">Gaming Setup &nearr;</a>
+                      <a href="https://github.com/danny19862025/ArchEasy/blob/main/docs/developer-tools.md" target="_blank" rel="noopener noreferrer">Developer Tools &nearr;</a>
+                      <a href="https://github.com/danny19862025/ArchEasy/blob/main/docs/github-releases.md" target="_blank" rel="noopener noreferrer">GitHub Releases &nearr;</a>
+                      <a href="https://github.com/danny19862025/ArchEasy/blob/main/docs/configs.md" target="_blank" rel="noopener noreferrer">Configs &amp; Presets &nearr;</a>
+                      <a href="https://github.com/danny19862025/ArchEasy/blob/main/docs/backups.md" target="_blank" rel="noopener noreferrer">Backups &amp; Export &nearr;</a>
+                      <a href="https://github.com/danny19862025/ArchEasy/blob/main/docs/ask-ai.md" target="_blank" rel="noopener noreferrer">Ask AI &nearr;</a>
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
+          </div>
+        </div>
+
+        <div class="step-grid reveal-item" style="--d: 160ms">
+          <div class="step-card">
+            <div class="step-head"><span class="step-num">4</span><h3>Launch ArchEasy</h3></div>
+            <p class="step-text">Open <strong>ArchEasy</strong> from your app menu, or run:</p>
+            <div class="code-block"><button class="copy-btn" type="button">Copy</button><pre>archeasy</pre></div>
+          </div>
+          <div class="step-card">
+            <div class="step-head"><span class="step-num">5</span><h3>Run first-time setup</h3></div>
+            <p class="step-text">
+              Click <strong>Setup ArchEasy</strong> in the top bar. It upgrades your system, installs Flatpak, build tools and Python,
+              builds <code>paru</code> for AUR support (you review its PKGBUILD first) and adds Flathub. Then search Pacman, AUR,
+              Flatpak and GitHub together.
+            </p>
           </div>
         </div>
 

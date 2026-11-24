@@ -182,15 +182,28 @@
   if (brandHomeBtn) brandHomeBtn.addEventListener('click', () => goToSlide(0));
 
   const installSlideIndex = totalSlides - 1;
-  if (topbarInstallBtn) topbarInstallBtn.addEventListener('click', () => goToSlide(installSlideIndex));
-  if (dockInstallBtn) dockInstallBtn.addEventListener('click', () => goToSlide(installSlideIndex));
+
+  // Opening the step-by-step install guide pauses auto-slide so readers can follow along.
+  function openInstallGuide() {
+    goToSlide(installSlideIndex);
+    if (autoPlay) {
+      autoPlay = false;
+      updateAutoPlayUI();
+    }
+  }
+  if (topbarInstallBtn) topbarInstallBtn.addEventListener('click', openInstallGuide);
+  if (dockInstallBtn) dockInstallBtn.addEventListener('click', openInstallGuide);
 
   document.querySelectorAll('[data-goto-slide]').forEach((btn) => {
     btn.addEventListener('click', () => {
       const target = Number(btn.getAttribute('data-goto-slide'));
-      if (!Number.isNaN(target)) goToSlide(target);
+      if (target === installSlideIndex) openInstallGuide();
+      else if (!Number.isNaN(target)) goToSlide(target);
     });
   });
+
+  // Scrolling a long slide (such as the install guide) restarts the auto-slide timer.
+  slides.forEach((s) => s.addEventListener('scroll', () => { autoStartTime = performance.now(); }, { passive: true }));
 
   // Auto-slide loop
   function updateAutoPlayUI() {
@@ -314,7 +327,7 @@
       hint: 'Builds release binary with Rust &amp; registers the desktop launcher under <code>~/.local/share</code>'
     },
     pkgbuild: {
-      code: `git clone https://github.com/danny19862025/ArchEasy.git && mkdir -p /tmp/archeasy-package\ncp ArchEasy/scripts/PKGBUILD /tmp/archeasy-package/ && cd /tmp/archeasy-package && makepkg -si`,
+      code: `git clone https://github.com/danny19862025/ArchEasy.git && mkdir -p ~/archeasy-package\ncp ArchEasy/scripts/PKGBUILD ~/archeasy-package/ && cd ~/archeasy-package && makepkg -si`,
       hint: 'Builds &amp; installs a native Arch Linux package cleanly through Pacman'
     }
   };
