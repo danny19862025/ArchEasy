@@ -3,51 +3,71 @@
    ========================================================================== */
 
 :root {
-  --accent: #4bb6ef;
-  --accent-2: #55cbb6;
-  --accent-rgb: 75, 182, 239;
-  --accent-2-rgb: 85, 203, 182;
+  /* Stellar palette — matches the ArchEasy app's Stellar theme:
+     void #060A14 · deep glass #0B1222 · ink #E9EEF7 · mute #97A3BA
+     coral #FF7A66 (primary) · ice #9ED6FF (focus / info) · mint #7FE0B4 (ok) */
+  --accent: #9ed6ff;
+  --accent-2: #7fe0b4;
+  --accent-rgb: 158, 214, 255;
+  --accent-2-rgb: 127, 224, 180;
+  --coral: #ff7a66;
+  --coral-hi: #ff9180;
+  --coral-ink: #1c0a06;
+  --coral-rgb: 255, 122, 102;
 
-  --bg: #080d14;
-  --bg-elevated: rgba(15, 24, 38, 0.78);
-  --bg-card: rgba(18, 29, 46, 0.72);
-  --bg-card-hover: rgba(24, 39, 61, 0.88);
-  --bg-code: #0a111b;
-  --border: rgba(130, 178, 224, 0.16);
-  --border-strong: rgba(130, 178, 224, 0.3);
+  --bg: #060a14;
+  --bg-elevated: linear-gradient(to bottom, rgba(158, 214, 255, 0.05), rgba(158, 214, 255, 0) 60%), rgba(11, 18, 34, 0.78);
+  --bg-card: linear-gradient(to bottom, rgba(158, 214, 255, 0.045), rgba(158, 214, 255, 0) 140px), rgba(11, 18, 34, 0.8);
+  --bg-card-hover: linear-gradient(to bottom, rgba(158, 214, 255, 0.07), rgba(158, 214, 255, 0) 140px), rgba(14, 23, 42, 0.9);
+  --bg-code: #070c18;
+  --border: rgba(170, 200, 245, 0.105);
+  --border-strong: rgba(170, 200, 245, 0.2);
+  --rim: inset 0 1px rgba(255, 255, 255, 0.06);
 
-  --text: #eef5fc;
-  --text-muted: #9eb3c9;
-  --text-dim: #6f869f;
+  --text: #e9eef7;
+  --text-muted: #97a3ba;
+  --text-dim: #7683a0;
 
-  --shadow-lg: 0 24px 64px rgba(0, 0, 0, 0.55);
-  --shadow-md: 0 12px 32px rgba(0, 0, 0, 0.35);
+  --shadow-lg: 0 24px 64px -18px rgba(0, 0, 0, 0.75);
+  --shadow-md: 0 10px 28px -12px rgba(0, 0, 0, 0.65);
   --radius-xl: 22px;
   --radius-lg: 16px;
   --radius-md: 12px;
   --radius-sm: 8px;
 
-  --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-display: "Unbounded", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-sans: "Onest", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 [data-theme="light"] {
-  --bg: #f3f7fc;
+  /* "Daylight observatory": paper sky, ink text, deeper coral and blue for contrast. */
+  --accent: #1f6fae;
+  --accent-2: #128a63;
+  --accent-rgb: 31, 111, 174;
+  --accent-2-rgb: 18, 138, 99;
+  --coral: #e8553f;
+  --coral-hi: #f26b56;
+  --coral-ink: #ffffff;
+  --coral-rgb: 232, 85, 63;
+
+  --bg: #f4f6fb;
   --bg-elevated: rgba(255, 255, 255, 0.86);
-  --bg-card: rgba(255, 255, 255, 0.84);
+  --bg-card: linear-gradient(to bottom, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.82));
   --bg-card-hover: rgba(255, 255, 255, 0.98);
-  --bg-code: #0f1724;
-  --border: rgba(15, 36, 61, 0.12);
-  --border-strong: rgba(15, 36, 61, 0.24);
+  --bg-code: #0b1222;
+  --border: rgba(16, 28, 52, 0.1);
+  --border-strong: rgba(16, 28, 52, 0.2);
+  --rim: inset 0 1px rgba(255, 255, 255, 0.9);
 
-  --text: #0f1c2e;
-  --text-muted: #475d75;
-  --text-dim: #6b8097;
+  --text: #0e1830;
+  --text-muted: #4a5873;
+  --text-dim: #6a7792;
 
-  --shadow-lg: 0 22px 54px rgba(15, 30, 52, 0.14);
-  --shadow-md: 0 10px 26px rgba(15, 30, 52, 0.08);
+  --shadow-lg: 0 22px 54px -16px rgba(15, 30, 52, 0.22);
+  --shadow-md: 0 10px 26px -12px rgba(15, 30, 52, 0.18);
 }
 
 *,
@@ -1613,9 +1633,10 @@ code {
 }
 
 .dock-action-pill.primary {
-  background: linear-gradient(135deg, var(--accent), var(--accent-2));
-  color: #061019;
+  background: linear-gradient(to bottom, var(--coral-hi), var(--coral));
+  color: var(--coral-ink);
   border-color: transparent;
+  box-shadow: inset 0 1px rgba(255, 255, 255, 0.35);
 }
 
 .dock-play-btn,
@@ -1863,6 +1884,184 @@ code {
     width: 52px;
     height: 52px;
   }
+}
+
+/* ==========================================================================
+   Stellar theme — deep space, glass panels, coral actions, ice-blue light.
+   Mirrors the app's Stellar theme so the site matches the screenshots.
+   ========================================================================== */
+
+body {
+  background:
+    radial-gradient(1200px 700px at 78% -10%, rgba(var(--accent-rgb), 0.07), transparent 60%),
+    radial-gradient(900px 600px at 8% 110%, rgba(var(--coral-rgb), 0.06), transparent 60%),
+    var(--bg);
+}
+
+/* Starfield replaces the grid: three tiled layers of tiny stars, slow twinkle. */
+.ambient-grid {
+  background-image:
+    radial-gradient(1.5px 1.5px at 12% 18%, rgba(233, 238, 247, 0.85), transparent 60%),
+    radial-gradient(1.5px 1.5px at 68% 42%, rgba(233, 238, 247, 0.7), transparent 60%),
+    radial-gradient(1.8px 1.8px at 34% 76%, rgba(158, 214, 255, 0.9), transparent 60%),
+    radial-gradient(1.5px 1.5px at 88% 84%, rgba(233, 238, 247, 0.6), transparent 60%),
+    radial-gradient(2px 2px at 52% 8%, rgba(255, 196, 184, 0.8), transparent 60%),
+    radial-gradient(1.5px 1.5px at 22% 58%, rgba(233, 238, 247, 0.5), transparent 60%);
+  background-size: 260px 260px, 340px 340px, 420px 420px, 300px 300px, 560px 560px, 380px 380px;
+  mask-image: none;
+  -webkit-mask-image: none;
+  animation: starTwinkle 7s ease-in-out infinite alternate;
+}
+.ambient-grid::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image:
+    radial-gradient(1.5px 1.5px at 40% 30%, rgba(233, 238, 247, 0.55), transparent 60%),
+    radial-gradient(1.5px 1.5px at 80% 64%, rgba(158, 214, 255, 0.6), transparent 60%),
+    radial-gradient(1.5px 1.5px at 6% 92%, rgba(233, 238, 247, 0.45), transparent 60%);
+  background-size: 190px 190px, 230px 230px, 270px 270px;
+  animation: starTwinkle 5s ease-in-out infinite alternate-reverse;
+}
+@keyframes starTwinkle {
+  from { opacity: 0.55; }
+  to { opacity: 1; }
+}
+[data-theme="light"] .ambient-grid,
+[data-theme="light"] .ambient-grid::after {
+  opacity: 0.18;
+  filter: invert(1);
+  animation: none;
+}
+
+.ambient-orb { opacity: 0.16; filter: blur(130px); }
+.orb-1 { background: radial-gradient(circle, rgba(var(--accent-rgb), 1), transparent 70%); }
+.orb-2 { background: radial-gradient(circle, rgba(var(--coral-rgb), 1), transparent 70%); }
+.ambient-watermark { opacity: 0.05; filter: none; }
+
+/* Type: wide display face for headings, medium weight, like the app. */
+h1, h2, h3, h4,
+.hero-title,
+.slide-header h2 {
+  font-family: var(--font-display);
+  font-weight: 500;
+}
+.hero-title {
+  font-size: clamp(1.9rem, 4.1vw, 3.1rem);
+  letter-spacing: -0.035em;
+  line-height: 1.1;
+}
+.slide-header h2 {
+  font-size: clamp(1.45rem, 2.7vw, 2.05rem);
+  letter-spacing: -0.025em;
+}
+.source-card h3, .feature-card h3, .principle-card h3, .wb-panel-head h3,
+.step-head h3, .req-box h4, .docs-links-box h4, .overview-head h3 {
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+.gradient-text {
+  background: linear-gradient(110deg, var(--accent) 10%, #c9b8ff 55%, var(--coral-hi) 95%);
+  -webkit-background-clip: text;
+  background-clip: text;
+}
+[data-theme="light"] .gradient-text {
+  background: linear-gradient(110deg, var(--accent) 10%, #6a4fd8 55%, var(--coral) 95%);
+  -webkit-background-clip: text;
+  background-clip: text;
+}
+.eyebrow { color: var(--coral-hi); letter-spacing: 0.16em; }
+[data-theme="light"] .eyebrow { color: var(--coral); }
+
+/* Glass rim on every panel. */
+.topbar, .deck-dock, .install-box, .step-card, .source-card, .feature-card,
+.principle-card, .hero-install-card, .req-box, .docs-links-box {
+  box-shadow: var(--rim), var(--shadow-md);
+}
+
+/* Primary = coral, top-lit; selections = coral tint; focus = ice. */
+.btn-primary,
+.tab-pill.active {
+  background: linear-gradient(to bottom, var(--coral-hi), var(--coral));
+  color: var(--coral-ink);
+  border-color: rgba(255, 179, 166, 0.6);
+  box-shadow: inset 0 1px rgba(255, 255, 255, 0.35), 0 8px 22px -8px rgba(var(--coral-rgb), 0.6);
+}
+.btn-primary:hover {
+  box-shadow: inset 0 1px rgba(255, 255, 255, 0.4), 0 12px 28px -8px rgba(var(--coral-rgb), 0.75);
+}
+.mini-tab.active,
+.install-tab.active {
+  background: rgba(var(--coral-rgb), 0.14);
+  color: var(--coral-hi);
+  border-color: rgba(var(--coral-rgb), 0.45);
+}
+.install-tab.active { border-bottom-color: var(--coral); }
+[data-theme="light"] .mini-tab.active,
+[data-theme="light"] .install-tab.active { color: var(--coral); }
+.slide-dot.active,
+.autoslide-fill {
+  background: linear-gradient(90deg, var(--coral), var(--coral-hi));
+  box-shadow: 0 0 12px rgba(var(--coral-rgb), 0.6);
+}
+.step-num {
+  color: var(--coral-ink);
+  background: linear-gradient(to bottom, var(--coral-hi), var(--coral));
+  box-shadow: inset 0 1px rgba(255, 255, 255, 0.35), 0 0 0 4px rgba(var(--coral-rgb), 0.14);
+}
+.step-list > li::before {
+  color: var(--accent);
+  border-color: rgba(var(--accent-rgb), 0.4);
+  background: rgba(var(--accent-rgb), 0.07);
+}
+a:focus-visible, button:focus-visible, [tabindex]:focus-visible {
+  outline: 2px solid rgba(var(--accent-rgb), 0.85);
+  outline-offset: 2px;
+}
+.code-block { border-color: var(--border-strong); box-shadow: var(--rim); }
+.code-block pre { color: #dfe9f8; }
+[data-theme="light"] .code-block .copy-btn {
+  color: #9ed6ff;
+  background: rgba(158, 214, 255, 0.12);
+  border-color: rgba(158, 214, 255, 0.35);
+}
+.step-card .code-block pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.pulse-dot { background: var(--accent-2); box-shadow: 0 0 10px var(--accent-2); }
+
+/* Hero emblem: the logo orbited by three moons, echoing the app's live orbits. */
+.hero-emblem { width: 150px; height: 150px; margin-bottom: 6px; }
+.hero-emblem .ring {
+  inset: 14px;
+  border: 1px solid rgba(var(--accent-rgb), 0.22);
+  animation: orbit 11s linear infinite;
+  --tilt: -18deg;
+}
+.hero-emblem .ring-2 { inset: 2px; --tilt: 24deg; animation-duration: 17s; animation-delay: 0s; animation-direction: reverse; }
+.hero-emblem .ring-3 { inset: -12px; --tilt: -62deg; animation-duration: 25s; animation-delay: 0s; }
+.hero-emblem .ring::after {
+  content: "";
+  position: absolute;
+  top: -4px;
+  left: calc(50% - 4px);
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--coral);
+  box-shadow: 0 0 10px 2px rgba(var(--coral-rgb), 0.7);
+}
+.hero-emblem .ring-2::after { background: var(--accent); box-shadow: 0 0 10px 2px rgba(var(--accent-rgb), 0.7); }
+.hero-emblem .ring-3::after { background: var(--accent-2); box-shadow: 0 0 10px 2px rgba(var(--accent-2-rgb), 0.7); width: 6px; height: 6px; }
+@keyframes orbit {
+  from { transform: rotate(var(--tilt)) scaleY(0.38) rotate(0deg); }
+  to { transform: rotate(var(--tilt)) scaleY(0.38) rotate(360deg); }
+}
+.emblem-core {
+  background: radial-gradient(circle at 50% 30%, rgba(var(--accent-rgb), 0.14), transparent 70%), #0b1222;
+  border-color: rgba(var(--accent-rgb), 0.3);
+  box-shadow: var(--rim), 0 0 44px rgba(var(--accent-rgb), 0.28);
 }
 
 @media (prefers-reduced-motion: reduce) {
