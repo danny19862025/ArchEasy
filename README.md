@@ -14,6 +14,25 @@ Diagnostics are read-only. Supported changes—Creator package installation, GNO
 
 ## Screenshots
 
+### New look — Stellar theme
+
+The **Software Centre** home page in the Stellar theme: a deep-space backdrop, glass panels, and the Arch logo orbited by live CPU, memory and network moons:
+
+![ArchEasy Software Centre in the Stellar theme with live system orbits](assets/screenshots/stellar-software-centre.png)
+
+Configs, with built-in presets and backup controls:
+
+![ArchEasy Configs page in the Stellar theme](assets/screenshots/stellar-configs.png)
+
+Installed software, with animated percentage circles by source:
+
+![ArchEasy Installed tab in the Stellar theme with Pacman, AUR and Flatpak circles](assets/screenshots/stellar-installed.png)
+
+### Old look — classic theme
+
+<details>
+<summary>Show the original look</summary>
+
 The **Software Centre** home page, with the integrated workbench sidebar and quick access to app search, Developer Tools, and Gaming:
 
 ![ArchEasy Software Centre with the integrated workbench sidebar](assets/screenshots/software-centre.png)
@@ -25,6 +44,8 @@ Configs, with built-in presets and backup controls:
 Installed software, with animated percentage circles by source:
 
 ![ArchEasy Installed tab with Pacman, AUR and Flatpak percentage circles](assets/screenshots/installed.png)
+
+</details>
 
 ## Install
 
