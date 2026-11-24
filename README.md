@@ -1,4 +1,18 @@
-# ArchEasy
+<p align="center">
+  <a href="https://danny19862025.github.io/ArchEasy/">
+    <img src="assets/archeasy.svg" alt="ArchEasy logo" width="96" height="96" />
+  </a>
+</p>
+
+<h1 align="center">ArchEasy</h1>
+
+<p align="center">
+  <a href="https://danny19862025.github.io/ArchEasy/"><strong>🌐 Visit the ArchEasy Website</strong></a>
+  &nbsp;&middot;&nbsp;
+  <a href="https://github.com/danny19862025/ArchEasy/releases/latest"><strong>Download v0.1.2</strong></a>
+  &nbsp;&middot;&nbsp;
+  <a href="#install"><strong>Installation Instructions</strong></a>
+</p>
 
 A Rust + GTK4 software browser for Arch Linux. Search Pacman, AUR, Flatpak, and GitHub together, filter by source, see installed packages, and start installation from a package card.
 
