@@ -319,16 +319,16 @@
      ======================================================================== */
   const quickInstallData = {
     binary: {
-      code: `sha256sum -c archeasy-0.1.2-x86_64-linux.tar.gz.sha256 && tar -xzf archeasy-0.1.2-x86_64-linux.tar.gz\ncd archeasy-0.1.2-x86_64-linux && install -Dm755 archeasy "$HOME/.local/bin/archeasy" && bash scripts/install-desktop.sh`,
-      hint: 'Download tarball + <code>.sha256</code> from GitHub Releases &middot; Requires GTK4 4.10+ &amp; Libadwaita 1.2+'
+      code: `curl -fLO https://github.com/danny19862025/ArchEasy/releases/latest/download/archeasy-0.1.2-x86_64-linux.tar.gz && curl -fLO https://github.com/danny19862025/ArchEasy/releases/latest/download/archeasy-0.1.2-x86_64-linux.tar.gz.sha256 && sha256sum -c archeasy-0.1.2-x86_64-linux.tar.gz.sha256 && tar -xzf archeasy-0.1.2-x86_64-linux.tar.gz && install -Dm755 archeasy-0.1.2-x86_64-linux/archeasy "$HOME/.local/bin/archeasy" && bash archeasy-0.1.2-x86_64-linux/scripts/install-desktop.sh`,
+      hint: 'Paste into your Arch terminal — downloads, verifies SHA-256, extracts &amp; installs launcher automatically.'
     },
     cargo: {
-      code: `git clone https://github.com/danny19862025/ArchEasy.git && cd ArchEasy\ncargo install --path . --locked && bash scripts/install-desktop.sh`,
-      hint: 'Builds release binary with Rust &amp; registers the desktop launcher under <code>~/.local/share</code>'
+      code: `git clone https://github.com/danny19862025/ArchEasy.git && cd ArchEasy && cargo install --path . --locked && bash scripts/install-desktop.sh`,
+      hint: 'Clones source, compiles release binary with Rust &amp; registers the desktop launcher under <code>~/.local/share</code>.'
     },
     pkgbuild: {
-      code: `git clone https://github.com/danny19862025/ArchEasy.git && mkdir -p ~/archeasy-package\ncp ArchEasy/scripts/PKGBUILD ~/archeasy-package/ && cd ~/archeasy-package && makepkg -si`,
-      hint: 'Builds &amp; installs a native Arch Linux package cleanly through Pacman'
+      code: `git clone https://github.com/danny19862025/ArchEasy.git && mkdir -p ~/archeasy-package && cp ArchEasy/scripts/PKGBUILD ~/archeasy-package/ && cd ~/archeasy-package && makepkg -si`,
+      hint: 'Builds &amp; installs a native Arch Linux package cleanly through Pacman.'
     }
   };
 

@@ -52,29 +52,39 @@
 
     <div class="topbar-right">
       <a
-        href="https://github.com/danny19862025/ArchEasy/releases/latest"
-        target="_blank"
-        rel="noopener noreferrer"
+        href="https://github.com/danny19862025/ArchEasy/releases/latest/download/archeasy-0.1.2-x86_64-linux.tar.gz"
         class="btn btn-primary btn-sm topbar-download-btn"
-        title="Download latest ArchEasy release"
+        title="Download prebuilt x86_64 binary (.tar.gz)"
       >
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <path d="M12 3v12m0 0-4-4m4 4 4-4M4 19h16"></path>
         </svg>
-        <span>Download</span>
+        <span>Download .tar.gz</span>
+      </a>
+
+      <a
+        href="https://github.com/danny19862025/ArchEasy/archive/refs/heads/main.tar.gz"
+        class="btn btn-secondary btn-sm topbar-source-btn"
+        title="Download full source code archive (.tar.gz)"
+      >
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <polyline points="16 18 22 12 16 6"></polyline>
+          <polyline points="8 6 2 12 8 18"></polyline>
+        </svg>
+        <span>Download Source</span>
       </a>
 
       <button
-        class="btn btn-secondary btn-sm topbar-install-btn"
+        class="icon-btn"
         id="topbarInstallBtn"
         type="button"
-        title="Jump to Installation Instructions (I)"
+        title="Easy Install Command Line (I)"
+        aria-label="Jump to Easy Install Command Line"
       >
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">
           <polyline points="4 17 10 11 4 5"></polyline>
           <line x1="12" y1="19" x2="20" y2="19"></line>
         </svg>
-        <span>Install</span>
       </button>
 
       <button class="icon-btn" id="soundToggleBtn" type="button" title="Toggle click sound" aria-label="Toggle click sound" aria-pressed="true">
@@ -164,51 +174,52 @@
 
         <div class="hero-cta reveal-item" style="--d: 240ms">
           <a
-            href="https://github.com/danny19862025/ArchEasy/releases/latest"
-            target="_blank"
-            rel="noopener noreferrer"
+            href="https://github.com/danny19862025/ArchEasy/releases/latest/download/archeasy-0.1.2-x86_64-linux.tar.gz"
             class="btn btn-primary btn-lg"
           >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
               <path d="M12 3v12m0 0-4-4m4 4 4-4M4 19h16"></path>
             </svg>
-            Download v0.1.2 (x86_64)
+            Download .tar.gz (v0.1.2)
           </a>
-          <button class="btn btn-secondary btn-lg" type="button" data-goto-slide="6">
+          <a
+            href="https://github.com/danny19862025/ArchEasy/archive/refs/heads/main.tar.gz"
+            class="btn btn-secondary btn-lg"
+          >
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <polyline points="4 17 10 11 4 5"></polyline>
-              <line x1="12" y1="19" x2="20" y2="19"></line>
+              <polyline points="16 18 22 12 16 6"></polyline>
+              <polyline points="8 6 2 12 8 18"></polyline>
             </svg>
-            Full Install Guide
-          </button>
-          <button class="btn btn-ghost btn-lg" type="button" data-goto-slide="1">
-            Explore Slides &rarr;
+            Download Source (.tar.gz)
+          </a>
+          <button class="btn btn-ghost btn-lg" type="button" data-goto-slide="6">
+            All Install Commands &rarr;
           </button>
         </div>
 
-        <!-- Quick Download & Installation Card directly on Main Slide -->
+        <!-- Easy Install Command Line Card directly on Main Slide -->
         <div class="hero-install-card reveal-item" style="--d: 310ms">
           <div class="hero-install-head">
-            <div class="hero-install-tabs" role="tablist" aria-label="Quick install methods">
+            <div class="hero-install-tabs" role="tablist" aria-label="Easy install command line options">
+              <span class="cli-badge">⚡ Easy Install CLI</span>
               <button class="mini-tab active" type="button" role="tab" aria-selected="true" data-quick-install="binary">
-                Binary Tarball
+                One-Line Binary
               </button>
               <button class="mini-tab" type="button" role="tab" aria-selected="false" data-quick-install="cargo">
-                Cargo
+                Build Source
               </button>
               <button class="mini-tab" type="button" role="tab" aria-selected="false" data-quick-install="pkgbuild">
                 Arch PKGBUILD
               </button>
             </div>
             <div class="hero-install-actions">
-              <button class="copy-btn" type="button" id="heroCopyBtn">Copy</button>
+              <button class="copy-btn" type="button" id="heroCopyBtn">Copy Command</button>
             </div>
           </div>
-          <pre class="hero-install-code" id="heroInstallCode"><code>sha256sum -c archeasy-0.1.2-x86_64-linux.tar.gz.sha256 &amp;&amp; tar -xzf archeasy-0.1.2-x86_64-linux.tar.gz
-cd archeasy-0.1.2-x86_64-linux &amp;&amp; install -Dm755 archeasy "$HOME/.local/bin/archeasy" &amp;&amp; bash scripts/install-desktop.sh</code></pre>
+          <pre class="hero-install-code" id="heroInstallCode"><code>curl -fLO https://github.com/danny19862025/ArchEasy/releases/latest/download/archeasy-0.1.2-x86_64-linux.tar.gz &amp;&amp; curl -fLO https://github.com/danny19862025/ArchEasy/releases/latest/download/archeasy-0.1.2-x86_64-linux.tar.gz.sha256 &amp;&amp; sha256sum -c archeasy-0.1.2-x86_64-linux.tar.gz.sha256 &amp;&amp; tar -xzf archeasy-0.1.2-x86_64-linux.tar.gz &amp;&amp; install -Dm755 archeasy-0.1.2-x86_64-linux/archeasy "$HOME/.local/bin/archeasy" &amp;&amp; bash archeasy-0.1.2-x86_64-linux/scripts/install-desktop.sh</code></pre>
           <div class="hero-install-foot">
-            <span id="heroInstallHint">Download tarball + <code>.sha256</code> from GitHub Releases &middot; Requires GTK4 4.10+ &amp; Libadwaita 1.2+</span>
-            <button class="text-link-btn" type="button" data-goto-slide="6">Step-by-step instructions &rarr;</button>
+            <span id="heroInstallHint">Paste into your Arch terminal — downloads, verifies SHA-256, extracts &amp; installs launcher automatically.</span>
+            <button class="text-link-btn" type="button" data-goto-slide="6">Step-by-step guide &rarr;</button>
           </div>
         </div>
       </div>
@@ -524,8 +535,31 @@ cd archeasy-0.1.2-x86_64-linux &amp;&amp; install -Dm755 archeasy "$HOME/.local/
           <span class="eyebrow">07 &middot; Download &amp; Installation</span>
           <h2>Install ArchEasy, step by step</h2>
           <p>
-            Five steps from a fresh Arch Linux desktop to your first search. Run every command as your normal user &mdash; <code>sudo</code> asks for your password when needed.
+            Use the one-line terminal command for the fastest setup, download the <code>.tar.gz</code> binary or source archive directly, or follow the five-step guide below.
           </p>
+        </div>
+
+        <div class="direct-downloads-bar reveal-item" style="--d: 40ms">
+          <a
+            class="btn btn-primary btn-sm"
+            href="https://github.com/danny19862025/ArchEasy/releases/latest/download/archeasy-0.1.2-x86_64-linux.tar.gz"
+          >
+            &darr; Download Binary .tar.gz (v0.1.2)
+          </a>
+          <a
+            class="btn btn-secondary btn-sm"
+            href="https://github.com/danny19862025/ArchEasy/archive/refs/heads/main.tar.gz"
+          >
+            &lt;/&gt; Download Source (.tar.gz)
+          </a>
+          <a
+            class="btn btn-ghost btn-sm"
+            href="https://github.com/danny19862025/ArchEasy/releases/latest"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            GitHub Releases &amp; SHA-256 &nearr;
+          </a>
         </div>
 
         <div class="step-grid reveal-item" style="--d: 60ms">
@@ -553,14 +587,17 @@ cd archeasy-0.1.2-x86_64-linux &amp;&amp; install -Dm755 archeasy "$HOME/.local/
 
           <div class="install-box">
             <div class="install-tabs" role="tablist" aria-label="Installation methods">
-              <button class="install-tab active" type="button" role="tab" aria-selected="true" data-install-tab="pkgbuild">
+              <button class="install-tab active" type="button" role="tab" aria-selected="true" data-install-tab="easy">
+                ⚡ Easy Install (One-Line)
+              </button>
+              <button class="install-tab" type="button" role="tab" aria-selected="false" data-install-tab="pkgbuild">
                 A &middot; Arch package <span class="tab-badge">Recommended</span>
               </button>
               <button class="install-tab" type="button" role="tab" aria-selected="false" data-install-tab="binary">
-                B &middot; Binary release (v0.1.2)
+                B &middot; Manual .tar.gz (v0.1.2)
               </button>
               <button class="install-tab" type="button" role="tab" aria-selected="false" data-install-tab="cargo">
-                C &middot; Build with Cargo
+                C &middot; Build from Source
               </button>
               <button class="install-tab" type="button" role="tab" aria-selected="false" data-install-tab="manage">
                 Update &amp; uninstall
@@ -571,8 +608,28 @@ cd archeasy-0.1.2-x86_64-linux &amp;&amp; install -Dm755 archeasy "$HOME/.local/
             </div>
 
             <div class="install-body">
+              <!-- Easy One-Line Install -->
+              <div class="install-panel active" data-install-panel="easy" role="tabpanel">
+                <p class="install-note">
+                  <strong>Fastest way:</strong> Copy and paste this single command into your Arch Linux terminal. It downloads the v0.1.2 <code>.tar.gz</code> + <code>.sha256</code>, verifies integrity, installs <code>archeasy</code> to <code>~/.local/bin</code>, and adds the app menu icon:
+                </p>
+                <div class="code-block">
+                  <button class="copy-btn" type="button">Copy</button>
+                  <pre>curl -fLO https://github.com/danny19862025/ArchEasy/releases/latest/download/archeasy-0.1.2-x86_64-linux.tar.gz \
+  &amp;&amp; curl -fLO https://github.com/danny19862025/ArchEasy/releases/latest/download/archeasy-0.1.2-x86_64-linux.tar.gz.sha256 \
+  &amp;&amp; sha256sum -c archeasy-0.1.2-x86_64-linux.tar.gz.sha256 \
+  &amp;&amp; tar -xzf archeasy-0.1.2-x86_64-linux.tar.gz \
+  &amp;&amp; install -Dm755 archeasy-0.1.2-x86_64-linux/archeasy "$HOME/.local/bin/archeasy" \
+  &amp;&amp; bash archeasy-0.1.2-x86_64-linux/scripts/install-desktop.sh</pre>
+                </div>
+                <div class="install-foot">
+                  <span>Ensure <code>~/.local/bin</code> is in your <code>PATH</code>, then launch <strong>ArchEasy</strong> from your app menu.</span>
+                  <a class="btn btn-primary btn-sm" href="https://github.com/danny19862025/ArchEasy/releases/latest/download/archeasy-0.1.2-x86_64-linux.tar.gz">Download .tar.gz &darr;</a>
+                </div>
+              </div>
+
               <!-- A: PKGBUILD -->
-              <div class="install-panel active" data-install-panel="pkgbuild" role="tabpanel">
+              <div class="install-panel" data-install-panel="pkgbuild" role="tabpanel">
                 <p class="install-note">Installs through Pacman, so it is easy to update and remove. Always builds the newest code.</p>
                 <ol class="step-list">
                   <li>
@@ -761,22 +818,31 @@ rm -f ~/.local/share/applications/archeasy.desktop \
     <div class="dock-group dock-quick-actions">
       <a
         class="dock-action-pill primary"
-        href="https://github.com/danny19862025/ArchEasy/releases/latest"
-        target="_blank"
-        rel="noopener noreferrer"
-        title="Download latest release"
+        href="https://github.com/danny19862025/ArchEasy/releases/latest/download/archeasy-0.1.2-x86_64-linux.tar.gz"
+        title="Download prebuilt x86_64 binary (.tar.gz)"
       >
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <path d="M12 3v12m0 0-4-4m4 4 4-4M4 19h16"></path>
         </svg>
-        <span>Download</span>
+        <span>.tar.gz</span>
       </a>
-      <button class="dock-action-pill" id="dockInstallBtn" type="button" title="Installation Instructions (I)">
+      <a
+        class="dock-action-pill"
+        href="https://github.com/danny19862025/ArchEasy/archive/refs/heads/main.tar.gz"
+        title="Download source code (.tar.gz)"
+      >
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <polyline points="16 18 22 12 16 6"></polyline>
+          <polyline points="8 6 2 12 8 18"></polyline>
+        </svg>
+        <span>Source</span>
+      </a>
+      <button class="dock-action-pill" id="dockInstallBtn" type="button" title="Easy Install Command Line (I)">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <polyline points="4 17 10 11 4 5"></polyline>
           <line x1="12" y1="19" x2="20" y2="19"></line>
         </svg>
-        <span>Install</span>
+        <span>CLI</span>
       </button>
     </div>
 
